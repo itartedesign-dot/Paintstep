@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0E1A33">
+  <title>Paintstep</title>
+  <meta name="description" content="Paintstep: ricrea un dipinto passo dopo passo in acrilico, olio o acquerello, con miscele di colore e pennelli consigliati.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="./" aria-label="Paintstep">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Paintstep</span>
+    </a>
+    <div class="top-right">
+      <button class="ghost" id="newBtn" data-i18n="newPainting" hidden></button>
+      <select id="langSel" class="lang" aria-label="Lingua / Language">
+        <option value="it">Italiano</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="es">Español</option>
+        <option value="de">Deutsch</option>
+      </select>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. CARICAMENTO -->
+    <section id="uploadView" class="view">
+      <h1 class="lead" data-i18n="lead"></h1>
+      <p class="sub" data-i18n="sub"></p>
+
+      <label class="drop" id="drop" tabindex="0">
+        <input type="file" id="fileInput" accept="image/*" hidden>
+        <img id="preview" alt="" hidden>
+        <span class="drop-empty" id="dropEmpty">
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 32V10M15 19l9-9 9 9M8 30v8h32v-8"/></svg>
+          <strong data-i18n="uploadTitle"></strong>
+          <span id="dropHint" data-i18n="uploadHint"></span>
+        </span>
+      </label>
+
+      <fieldset class="medium">
+        <legend data-i18n="mediumLegend"></legend>
+        <div class="medium-grid">
+          <label class="medium-opt">
+            <input type="radio" name="medium" value="acrilico" checked>
+            <span class="medium-card"><i class="dab dab-acr" aria-hidden="true"></i><b data-i18n="acr"></b><small data-i18n="acrSub"></small></span>
+          </label>
+          <label class="medium-opt">
+            <input type="radio" name="medium" value="olio">
+            <span class="medium-card"><i class="dab dab-oil" aria-hidden="true"></i><b data-i18n="oil"></b><small data-i18n="oilSub"></small></span>
+          </label>
+          <label class="medium-opt">
+            <input type="radio" name="medium" value="acquerello">
+            <span class="medium-card"><i class="dab dab-wat" aria-hidden="true"></i><b data-i18n="wat"></b><small data-i18n="watSub"></small></span>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="field">
+        <label for="paletteSel" data-i18n="paletteLabel"></label>
+        <select id="paletteSel">
+          <option value="primari" data-i18n="palPrimary"></option>
+          <option value="estesa" data-i18n="palExtended"></option>
+        </select>
+      </div>
+
+      <button class="primary" id="toSizeBtn" data-i18n="continue" disabled></button>
+      <p class="fine" data-i18n="privacy"></p>
+      <p class="disclaimer" data-i18n="disclaimer"></p>
+    </section>
+
+    <!-- 2. MISURE -->
+    <section id="sizeView" class="view" hidden>
+      <h1 class="lead small" data-i18n="sizeTitle"></h1>
+      <p class="sub" data-i18n="sizeSub"></p>
+      <div class="size-row">
+        <div class="field">
+          <label for="wIn" data-i18n="width"></label>
+          <input id="wIn" type="text" inputmode="decimal" autocomplete="off">
+        </div>
+        <span class="times" aria-hidden="true">×</span>
+        <div class="field">
+          <label for="hIn" data-i18n="height"></label>
+          <input id="hIn" type="text" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="field unit">
+          <label for="unitSel" data-i18n="unit"></label>
+          <select id="unitSel"><option value="cm">cm</option><option value="in">in</option></select>
+        </div>
+      </div>
+      <p class="fine left" data-i18n="sizeHint"></p>
+      <p class="error" id="sizeErr" hidden></p>
+      <button class="primary" id="sizeNextBtn" data-i18n="continue"></button>
+      <button class="link" id="skipBtn" data-i18n="skip"></button>
+    </section>
+
+    <!-- 3. POSIZIONAMENTO -->
+    <section id="cropView" class="view" hidden>
+      <h1 class="lead small" data-i18n="cropTitle"></h1>
+      <p class="sub" data-i18n="cropHint"></p>
+      <div class="crop-box" id="cropBox">
+        <canvas id="cropCanvas"></canvas>
+      </div>
+      <p class="crop-dims" id="cropDims"></p>
+      <div class="zoom-row">
+        <button class="round-btn" id="zoomOutBtn" data-i18n-aria="zoomOut"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12"/></svg></button>
+        <input type="range" id="zoomRange" min="0" max="1000" value="0" data-i18n-aria="zoom">
+        <button class="round-btn" id="zoomInBtn" data-i18n-aria="zoomIn"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12M10 4v12"/></svg></button>
+        <button class="ghost" id="recenterBtn" data-i18n="recenter"></button>
+      </div>
+      <button class="primary" id="cropNextBtn" data-i18n="continue"></button>
+      <button class="link" id="cropBackBtn" data-i18n="back"></button>
+    </section>
+
+    <!-- 4. ELABORAZIONE -->
+    <section id="workView" class="view" hidden>
+      <div class="work">
+        <div class="work-bar"><span id="workFill"></span></div>
+        <p id="workMsg"></p>
+      </div>
+    </section>
+
+    <!-- 5. STEP -->
+    <section id="stepView" class="view" hidden>
+      <div class="ribbon" id="ribbon" aria-hidden="true"></div>
+
+      <p class="quad-label" id="quadLabel" hidden></p>
+
+      <div class="stage">
+        <div class="canvas-wrap">
+          <div class="frame" id="frame">
+            <canvas id="stepCanvas"></canvas>
+            <div class="split-grid" id="splitGrid" hidden>
+              <button data-q="0"></button><button data-q="1"></button>
+              <button data-q="2"></button><button data-q="3"></button>
+            </div>
+          </div>
+        </div>
+        <aside class="rail" id="rail">
+          <button class="rail-btn" id="splitBtn" aria-pressed="false">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="2"/><path d="M16 3v26M3 16h26"/></svg>
+            <span data-i18n="split"></span>
+          </button>
+          <div class="split-colors" id="splitColors" role="radiogroup" hidden>
+            <button role="radio" data-c="#E53935" data-i18n-aria="cRed" style="--c:#E53935"></button>
+            <button role="radio" data-c="#000000" data-i18n-aria="cBlack" style="--c:#000000"></button>
+            <button role="radio" data-c="#FFFFFF" data-i18n-aria="cWhite" style="--c:#FFFFFF"></button>
+            <button role="radio" data-c="#FFD600" data-i18n-aria="cYellow" style="--c:#FFD600"></button>
+            <button role="radio" data-c="#2EAD4B" data-i18n-aria="cGreen" style="--c:#2EAD4B"></button>
+          </div>
+        </aside>
+      </div>
+
+      <p class="size-info" id="sizeInfo" hidden></p>
+
+      <button class="back-whole" id="backWholeBtn" hidden>
+        <svg viewBox="0 0 16 48" aria-hidden="true"><path d="M8 46V3M2 10l6-8 6 8"/></svg>
+        <span data-i18n="backWhole"></span>
+      </button>
+
+      <div class="canvas-tools">
+        <button class="chip" id="zonesBtn" aria-pressed="false" data-i18n="zones"></button>
+        <button class="chip" id="origBtn" data-i18n="orig"></button>
+        <button class="chip" id="dlBtn" data-i18n="download"></button>
+      </div>
+
+      <div class="stroke">
+        <svg class="down-arrow" viewBox="0 0 16 56" aria-hidden="true"><path d="M8 1v52M2 46l6 8 6-8"/></svg>
+        <div>
+          <p class="step-num" id="stepNum"></p>
+          <h2 id="stepTitle"></h2>
+          <p id="stepDesc" class="step-desc"></p>
+        </div>
+      </div>
+
+      <h3 class="block-title" data-i18n="colorsTitle"></h3>
+      <div class="swatches" id="swatches"></div>
+
+      <div class="advice">
+        <div>
+          <h3 class="block-title" data-i18n="brushesTitle"></h3>
+          <div class="brushes" id="brushes"></div>
+        </div>
+        <div>
+          <h3 class="block-title" data-i18n="wetTitle"></h3>
+          <div class="badges" id="badges"></div>
+        </div>
+      </div>
+
+      <nav class="steps-nav" data-i18n-aria="stepsNav">
+        <button class="nav-arrow" id="prevBtn">
+          <svg viewBox="0 0 72 16" aria-hidden="true"><path d="M71 8H2M9 1L2 8l7 7"/></svg>
+          <span data-i18n="prev"></span>
+        </button>
+        <button class="nav-arrow" id="nextBtn">
+          <svg viewBox="0 0 72 16" aria-hidden="true"><path d="M1 8h69M63 1l7 7-7 7"/></svg>
+          <span data-i18n="next"></span>
+        </button>
+      </nav>
+
+      <p class="disclaimer" data-i18n="disclaimer"></p>
+    </section>
+  </main>
+
+  <!-- SCHEDA COLORE -->
+  <div class="sheet-backdrop" id="sheetBackdrop" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <button class="sheet-close" id="sheetClose" data-i18n-aria="close">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3l14 14M17 3L3 17"/></svg>
+      </button>
+      <div class="sheet-swatch" id="sheetSwatch"><span id="sheetHex"></span></div>
+      <h3 id="sheetTitle" data-i18n="howTo"></h3>
+      <div class="recipe" id="recipe"></div>
+      <div class="compare">
+        <div><span class="cmp-dot" id="cmpTarget"></span><small data-i18n="target"></small></div>
+        <div><span class="cmp-dot" id="cmpMix"></span><small data-i18n="mix"></small></div>
+        <p id="cmpNote"></p>
+      </div>
+      <p class="limit" data-i18n="brandLimit"></p>
+      <div class="where">
+        <p data-i18n="where"></p>
+        <canvas id="whereCanvas"></canvas>
+      </div>
+      <p class="sheet-tip" id="sheetTip"></p>
+    </div>
+  </div>
+
+  <!-- BARRA FISSA: caffè + crediti -->
+  <footer class="dock" id="dock">
+    <div class="coffee">
+      <svg class="cup" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 12h17v7a7 7 0 01-7 7h-3a7 7 0 01-7-7z"/><path d="M23 14h2.5a3.5 3.5 0 010 7H23"/><path d="M11 4c0 2 2 2 2 4M16 4c0 2 2 2 2 4" class="steam"/></svg>
+      <div class="coffee-text">
+        <strong data-i18n="coffeeTitle"></strong>
+        <span class="long" data-i18n="coffeeText"></span>
+        <span class="short" data-i18n="coffeeMini"></span>
+      </div>
+      <a class="pp-btn" id="ppBtn" href="#" target="_blank" rel="noopener" data-i18n="ppBtn"></a>
+    </div>
+    <div class="credits">
+      <span data-i18n="madeBy"></span>
+      <button class="credits-link" id="contactBtn" data-i18n="contacts"></button>
+    </div>
+  </footer>
+
+  <!-- CONTATTI -->
+  <div class="sheet-backdrop" id="contactBackdrop" hidden>
+    <div class="sheet contact" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+      <button class="sheet-close" id="contactClose" data-i18n-aria="close">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3l14 14M17 3L3 17"/></svg>
+      </button>
+      <h3 id="contactTitle" data-i18n="contactTitle"></h3>
+      <p class="contact-sub" data-i18n="contactSub"></p>
+      <form id="contactForm" novalidate>
+        <div class="field"><label for="cName" data-i18n="cName"></label><input id="cName" name="name" autocomplete="name" required></div>
+        <div class="field"><label for="cEmail" data-i18n="cEmail"></label><input id="cEmail" name="email" type="email" autocomplete="email"></div>
+        <div class="field"><label for="cMsg" data-i18n="cMsg"></label><textarea id="cMsg" name="message" rows="5" required></textarea></div>
+        <input type="text" name="_honey" class="honey" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <p class="error" id="contactErr" hidden></p>
+        <button class="primary" id="contactSend" type="submit" data-i18n="cSend"></button>
+        <p class="fine" data-i18n="cNote"></p>
+      </form>
+      <p class="contact-ok" id="contactOk" hidden></p>
+    </div>
+  </div>
+
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
