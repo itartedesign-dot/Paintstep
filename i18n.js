@@ -971,4 +971,216 @@ Object.keys(I18N_LAYERS).forEach((l) => {
   Object.assign(dst.phase.wat.desc, src.wd);
 });
 
+/* ---------- Testi delle zone riconosciute (cielo, acqua, soggetto…) ---------- */
+const I18N_ZONES = {
+  "it": {
+    "ui": {
+      "wSegModel": "Scarico il modello che riconosce gli elementi (solo la prima volta)… {p}%",
+      "wSeg": "Riconosco gli elementi del dipinto…",
+      "segNote": "Elementi riconosciuti dall'IA: {list}.",
+      "zSky": "cielo",
+      "zDist": "lontananze",
+      "zWater": "acqua",
+      "zScene": "ambiente",
+      "zSubject": "soggetto"
+    },
+    "pt": {
+      "blockSky": "Abbozzo: cielo",
+      "blockDistance": "Abbozzo: lontananze",
+      "blockWater": "Abbozzo: acqua",
+      "blockSubject": "Abbozzo: soggetto",
+      "detailsSubject": "Dettagli del soggetto"
+    },
+    "pd": {
+      "blockSky": "Inizia dal cielo, la parte più lontana del quadro. Stendi il colore con pennellate larghe e sfumate, più scuro in alto e più chiaro verso l'orizzonte, e lascialo sconfinare un po' sotto i contorni degli elementi davanti.",
+      "blockDistance": "Stendi montagne e zone lontane con colori più chiari, freddi e poco contrastati: è la prospettiva aerea, che dà profondità al quadro.",
+      "blockWater": "Stendi l'acqua con pennellate orizzontali. Riprendi i colori del cielo e degli elementi che vi si riflettono, un po' più scuri e meno nitidi.",
+      "blockSubject": "Ora il soggetto principale. Stendi le sue masse con pochi colori, separando bene la parte in luce da quella in ombra: i dettagli arriveranno dopo.",
+      "detailsSubject": "Concentrati sul soggetto principale: definisci contorni, texture e piccoli elementi con pennelli sottili. È qui che si posa lo sguardo, quindi dedicagli più cura."
+    },
+    "wt": {
+      "blockSky": "Lavatura del cielo",
+      "blockDistance": "Lavature delle lontananze",
+      "blockWater": "Lavatura dell'acqua",
+      "blockSubject": "Prima lavatura del soggetto",
+      "detailsSubject": "Dettagli del soggetto"
+    },
+    "wd": {
+      "blockSky": "Bagna la zona del cielo e stendi il colore bagnato su bagnato, più intenso in alto e più chiaro verso l'orizzonte. Lascia bianca la carta dove ci sono nuvole luminose.",
+      "blockDistance": "Quando il cielo è asciutto, stendi montagne e zone lontane con colori chiari e freddi, molto diluiti.",
+      "blockWater": "Stendi l'acqua con pennellate orizzontali, riprendendo i colori del cielo. Lascia sottili strisce di carta bianca per i riflessi di luce.",
+      "blockSubject": "Stendi una lavatura chiara sul soggetto principale, lasciando bianca la carta nei punti di luce più forte.",
+      "detailsSubject": "Definisci il soggetto con un pennello a punta e poca acqua: contorni, texture e piccoli scuri. È il punto dove si posa lo sguardo."
+    }
+  },
+  "en": {
+    "ui": {
+      "wSegModel": "Downloading the element-recognition model (first time only)… {p}%",
+      "wSeg": "Recognizing the elements of the painting…",
+      "segNote": "Elements recognized by AI: {list}.",
+      "zSky": "sky",
+      "zDist": "distance",
+      "zWater": "water",
+      "zScene": "surroundings",
+      "zSubject": "subject"
+    },
+    "pt": {
+      "blockSky": "Block-in: sky",
+      "blockDistance": "Block-in: distance",
+      "blockWater": "Block-in: water",
+      "blockSubject": "Block-in: subject",
+      "detailsSubject": "Subject details"
+    },
+    "pd": {
+      "blockSky": "Start with the sky, the most distant part of the painting. Lay the color with broad, blended strokes, darker at the top and lighter toward the horizon, and let it run slightly under the edges of the elements in front.",
+      "blockDistance": "Paint mountains and distant areas with lighter, cooler, low-contrast colors: this is aerial perspective, and it gives the painting depth.",
+      "blockWater": "Lay the water with horizontal strokes. Pick up the colors of the sky and of what is reflected in it, slightly darker and less sharp.",
+      "blockSubject": "Now the main subject. Lay its masses with few colors, clearly separating the lit side from the shadow side: the details will come later.",
+      "detailsSubject": "Focus on the main subject: define edges, textures and small elements with fine brushes. This is where the eye lands, so give it extra care."
+    },
+    "wt": {
+      "blockSky": "Sky wash",
+      "blockDistance": "Distance washes",
+      "blockWater": "Water wash",
+      "blockSubject": "First wash on the subject",
+      "detailsSubject": "Subject details"
+    },
+    "wd": {
+      "blockSky": "Wet the sky area and lay the color wet-on-wet, stronger at the top and lighter toward the horizon. Leave the paper white where there are bright clouds.",
+      "blockDistance": "When the sky is dry, paint mountains and distant areas with light, cool, very diluted colors.",
+      "blockWater": "Lay the water with horizontal strokes, picking up the sky colors. Leave thin strips of white paper for light reflections.",
+      "blockSubject": "Lay a light wash over the main subject, leaving the paper white at the strongest highlights.",
+      "detailsSubject": "Define the subject with a pointed brush and little water: edges, textures and small darks. This is where the eye lands."
+    }
+  },
+  "fr": {
+    "ui": {
+      "wSegModel": "Téléchargement du modèle de reconnaissance des éléments (la première fois seulement)… {p} %",
+      "wSeg": "Je reconnais les éléments du tableau…",
+      "segNote": "Éléments reconnus par l'IA : {list}.",
+      "zSky": "ciel",
+      "zDist": "lointains",
+      "zWater": "eau",
+      "zScene": "décor",
+      "zSubject": "sujet"
+    },
+    "pt": {
+      "blockSky": "Ébauche : ciel",
+      "blockDistance": "Ébauche : lointains",
+      "blockWater": "Ébauche : eau",
+      "blockSubject": "Ébauche : sujet",
+      "detailsSubject": "Détails du sujet"
+    },
+    "pd": {
+      "blockSky": "Commencez par le ciel, la partie la plus lointaine du tableau. Posez la couleur à larges touches fondues, plus foncée en haut et plus claire vers l'horizon, en débordant un peu sous les contours des éléments situés devant.",
+      "blockDistance": "Peignez les montagnes et les zones lointaines avec des couleurs plus claires, plus froides et peu contrastées : c'est la perspective atmosphérique, qui donne de la profondeur au tableau.",
+      "blockWater": "Posez l'eau par touches horizontales. Reprenez les couleurs du ciel et des éléments qui s'y reflètent, un peu plus foncées et moins nettes.",
+      "blockSubject": "Place au sujet principal. Posez ses masses avec peu de couleurs, en séparant bien la partie éclairée de la partie dans l'ombre : les détails viendront ensuite.",
+      "detailsSubject": "Concentrez-vous sur le sujet principal : précisez contours, textures et petits éléments avec des pinceaux fins. C'est là que se pose le regard, soignez-le particulièrement."
+    },
+    "wt": {
+      "blockSky": "Lavis du ciel",
+      "blockDistance": "Lavis des lointains",
+      "blockWater": "Lavis de l'eau",
+      "blockSubject": "Premier lavis du sujet",
+      "detailsSubject": "Détails du sujet"
+    },
+    "wd": {
+      "blockSky": "Mouillez la zone du ciel et posez la couleur mouillé sur mouillé, plus intense en haut et plus claire vers l'horizon. Laissez le papier blanc là où il y a des nuages lumineux.",
+      "blockDistance": "Quand le ciel est sec, peignez les montagnes et les zones lointaines avec des couleurs claires et froides, très diluées.",
+      "blockWater": "Posez l'eau par touches horizontales en reprenant les couleurs du ciel. Laissez de fines bandes de papier blanc pour les reflets de lumière.",
+      "blockSubject": "Posez un lavis clair sur le sujet principal, en laissant le papier blanc aux lumières les plus fortes.",
+      "detailsSubject": "Précisez le sujet avec un pinceau pointu et peu d'eau : contours, textures et petits sombres. C'est là que se pose le regard."
+    }
+  },
+  "es": {
+    "ui": {
+      "wSegModel": "Descargando el modelo de reconocimiento de elementos (solo la primera vez)… {p} %",
+      "wSeg": "Reconociendo los elementos del cuadro…",
+      "segNote": "Elementos reconocidos por la IA: {list}.",
+      "zSky": "cielo",
+      "zDist": "lejanías",
+      "zWater": "agua",
+      "zScene": "entorno",
+      "zSubject": "sujeto"
+    },
+    "pt": {
+      "blockSky": "Encaje: cielo",
+      "blockDistance": "Encaje: lejanías",
+      "blockWater": "Encaje: agua",
+      "blockSubject": "Encaje: sujeto",
+      "detailsSubject": "Detalles del sujeto"
+    },
+    "pd": {
+      "blockSky": "Empieza por el cielo, la parte más lejana del cuadro. Extiende el color con pinceladas amplias y fundidas, más oscuro arriba y más claro hacia el horizonte, y deja que invada un poco los contornos de los elementos de delante.",
+      "blockDistance": "Pinta las montañas y las zonas lejanas con colores más claros, fríos y poco contrastados: es la perspectiva atmosférica, que da profundidad al cuadro.",
+      "blockWater": "Extiende el agua con pinceladas horizontales. Retoma los colores del cielo y de lo que se refleja en ella, algo más oscuros y menos nítidos.",
+      "blockSubject": "Ahora el sujeto principal. Extiende sus masas con pocos colores, separando bien la parte iluminada de la parte en sombra: los detalles llegarán después.",
+      "detailsSubject": "Céntrate en el sujeto principal: define contornos, texturas y elementos pequeños con pinceles finos. Es donde se posa la mirada, así que dedícale más cuidado."
+    },
+    "wt": {
+      "blockSky": "Aguada del cielo",
+      "blockDistance": "Aguadas de las lejanías",
+      "blockWater": "Aguada del agua",
+      "blockSubject": "Primera aguada del sujeto",
+      "detailsSubject": "Detalles del sujeto"
+    },
+    "wd": {
+      "blockSky": "Moja la zona del cielo y extiende el color húmedo sobre húmedo, más intenso arriba y más claro hacia el horizonte. Deja el papel en blanco donde haya nubes luminosas.",
+      "blockDistance": "Cuando el cielo esté seco, pinta las montañas y las zonas lejanas con colores claros y fríos, muy diluidos.",
+      "blockWater": "Extiende el agua con pinceladas horizontales, retomando los colores del cielo. Deja finas franjas de papel blanco para los reflejos de luz.",
+      "blockSubject": "Extiende una aguada clara sobre el sujeto principal, dejando el papel en blanco en las luces más fuertes.",
+      "detailsSubject": "Define el sujeto con un pincel de punta y poca agua: contornos, texturas y pequeños oscuros. Es donde se posa la mirada."
+    }
+  },
+  "de": {
+    "ui": {
+      "wSegModel": "Erkennungsmodell wird geladen (nur beim ersten Mal)… {p} %",
+      "wSeg": "Ich erkenne die Elemente des Bildes…",
+      "segNote": "Von der KI erkannte Elemente: {list}.",
+      "zSky": "Himmel",
+      "zDist": "Ferne",
+      "zWater": "Wasser",
+      "zScene": "Umgebung",
+      "zSubject": "Motiv"
+    },
+    "pt": {
+      "blockSky": "Anlage: Himmel",
+      "blockDistance": "Anlage: Ferne",
+      "blockWater": "Anlage: Wasser",
+      "blockSubject": "Anlage: Motiv",
+      "detailsSubject": "Details des Motivs"
+    },
+    "pd": {
+      "blockSky": "Beginne mit dem Himmel, dem entferntesten Teil des Bildes. Trage die Farbe mit breiten, weich verlaufenden Strichen auf, oben dunkler und zum Horizont hin heller, und lass sie etwas unter die Kanten der vorderen Elemente laufen.",
+      "blockDistance": "Male Berge und entfernte Bereiche mit helleren, kühleren und kontrastärmeren Farben: Das ist die Luftperspektive, die dem Bild Tiefe gibt.",
+      "blockWater": "Trage das Wasser mit waagerechten Strichen auf. Nimm die Farben des Himmels und der gespiegelten Elemente auf, etwas dunkler und weniger scharf.",
+      "blockSubject": "Jetzt das Hauptmotiv. Lege seine Massen mit wenigen Farben an und trenne deutlich die beleuchtete Seite von der Schattenseite: Die Details kommen später.",
+      "detailsSubject": "Konzentriere dich auf das Hauptmotiv: Arbeite Kanten, Texturen und kleine Elemente mit feinen Pinseln heraus. Hier bleibt der Blick hängen, also gib dir besondere Mühe."
+    },
+    "wt": {
+      "blockSky": "Lavierung des Himmels",
+      "blockDistance": "Lavierungen der Ferne",
+      "blockWater": "Lavierung des Wassers",
+      "blockSubject": "Erste Lavierung des Motivs",
+      "detailsSubject": "Details des Motivs"
+    },
+    "wd": {
+      "blockSky": "Befeuchte den Himmelsbereich und trage die Farbe nass in nass auf, oben kräftiger und zum Horizont hin heller. Lass das Papier dort weiß, wo helle Wolken sind.",
+      "blockDistance": "Wenn der Himmel trocken ist, male Berge und entfernte Bereiche mit hellen, kühlen, stark verdünnten Farben.",
+      "blockWater": "Trage das Wasser mit waagerechten Strichen auf und nimm die Farben des Himmels auf. Lass schmale Streifen weißes Papier für Lichtreflexe frei.",
+      "blockSubject": "Lege eine helle Lavierung über das Hauptmotiv und lass das Papier an den stärksten Lichtern weiß.",
+      "detailsSubject": "Arbeite das Motiv mit einem spitzen Pinsel und wenig Wasser heraus: Kanten, Texturen und kleine Dunkeltöne. Hier bleibt der Blick hängen."
+    }
+  }
+};
+Object.keys(I18N_ZONES).forEach((l) => {
+  const src = I18N_ZONES[l], dst = I18N[l];
+  Object.assign(dst.ui, src.ui);
+  Object.assign(dst.phase.paint.title, src.pt);
+  Object.assign(dst.phase.paint.desc, src.pd);
+  Object.assign(dst.phase.wat.title, src.wt);
+  Object.assign(dst.phase.wat.desc, src.wd);
+});
+
 if (typeof module !== 'undefined') module.exports = I18N;
