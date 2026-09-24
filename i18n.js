@@ -713,4 +713,262 @@ const I18N = {
   },
 };
 
+/* ---------- Testi degli strati di pittura (step per zone e profondità) ---------- */
+const I18N_LAYERS = {
+  "it": {
+    "ui": {
+      "wModel": "Scarico il modello di profondità (solo la prima volta)… {p}%",
+      "wDepth": "Stimo la profondità del dipinto…",
+      "wFallback": "Modello non disponibile: uso il metodo semplificato…",
+      "wPlan": "Organizzo gli strati di pittura…",
+      "depthAI": "Ordine delle zone calcolato con il modello di profondità (IA).",
+      "depthSimple": "Ordine delle zone calcolato con il metodo semplificato: il modello di profondità non era disponibile."
+    },
+    "pt": {
+      "ground": "Fondo tonale",
+      "blockFar": "Abbozzo: sfondo",
+      "blockMid": "Abbozzo: piani intermedi",
+      "blockNear": "Abbozzo: primo piano",
+      "shadows": "Ombre e mezzi toni",
+      "lights": "Luci e volumi",
+      "details": "Dettagli",
+      "final": "Luci finali e ritocchi"
+    },
+    "pd": {
+      "ground": "Stendi su tutta la tela una velatura sottile e trasparente di un colore caldo e neutro: elimina il bianco della tela e ti aiuta a giudicare i valori. Il disegno deve restare visibile.",
+      "blockFar": "Inizia dalle zone più lontane, come cielo e sfondo. Stendi campiture larghe e piatte, senza dettagli: stai fissando colore e valore generale.",
+      "blockMid": "Procedi verso il davanti con le masse dei piani intermedi. Lascia che i bordi si sovrappongano un po' allo sfondo: li definirai dopo.",
+      "blockNear": "Copri le masse del primo piano e del soggetto principale. Ora tutta la tela è coperta: controlla che i rapporti tra chiari e scuri funzionino.",
+      "shadows": "Torna sulle masse e costruisci le forme partendo dalle ombre e dai mezzi toni. Lavora con colore più corposo e pennelli più piccoli.",
+      "lights": "Aggiungi le zone chiare sopra i mezzi toni per dare volume. Le luci vanno sempre sopra gli scuri, non il contrario.",
+      "details": "Definisci contorni, texture e piccoli elementi, prima nelle zone lontane poi sul soggetto. Usa pennelli piccoli e tocchi precisi."
+    },
+    "od": {
+      "ground": "Stendi su tutta la tela una velatura sottile di terra di Siena o terra d'ombra molto diluita con solvente e togli l'eccesso con uno straccio. Il disegno deve restare visibile.",
+      "blockFar": "Inizia dalle zone più lontane, come cielo e sfondo, con colore magro diluito con solvente. Campiture larghe e piatte: stai fissando colore e valore generale."
+    },
+    "wt": {
+      "blockFar": "Prima lavatura: sfondo",
+      "blockMid": "Lavature dei piani intermedi",
+      "blockNear": "Lavature del primo piano",
+      "wMid": "Velature dei mezzi toni",
+      "wDark": "Ombre",
+      "details": "Dettagli"
+    },
+    "wd": {
+      "blockFar": "Bagna la carta e stendi le lavature più ampie e chiare delle zone lontane, come cielo e sfondo, bagnato su bagnato. Lascia asciugare del tutto.",
+      "blockMid": "Stendi le lavature chiare dei piani intermedi. Lascia bianca la carta dove servono le luci.",
+      "blockNear": "Stendi le lavature chiare del primo piano e del soggetto. Ricorda: in acquerello il bianco è la carta e non si recupera.",
+      "wMid": "Sovrapponi velature più cariche solo quando lo strato sotto è asciutto, per costruire volume senza sporcare i colori.",
+      "wDark": "Scurisci le ombre e definisci le forme con meno acqua. Dipingendo su carta asciutta ottieni bordi netti.",
+      "details": "Definisci contorni e piccoli elementi con meno acqua e un pennello a punta, prima nelle zone lontane poi sul soggetto."
+    }
+  },
+  "en": {
+    "ui": {
+      "wModel": "Downloading the depth model (first time only)… {p}%",
+      "wDepth": "Estimating the painting's depth…",
+      "wFallback": "Model unavailable: using the simplified method…",
+      "wPlan": "Planning the paint layers…",
+      "depthAI": "Zone order calculated with the AI depth model.",
+      "depthSimple": "Zone order calculated with the simplified method: the depth model wasn't available."
+    },
+    "pt": {
+      "ground": "Toned ground",
+      "blockFar": "Block-in: background",
+      "blockMid": "Block-in: middle ground",
+      "blockNear": "Block-in: foreground",
+      "shadows": "Shadows and midtones",
+      "lights": "Lights and volume",
+      "details": "Details",
+      "final": "Final highlights and touches"
+    },
+    "pd": {
+      "ground": "Cover the whole canvas with a thin, transparent wash of a warm, neutral color: it removes the white of the canvas and helps you judge values. The drawing should stay visible.",
+      "blockFar": "Start with the farthest areas, such as sky and background. Lay broad, flat areas of color without details: you are setting the overall color and value.",
+      "blockMid": "Move forward with the masses of the middle ground. Let the edges overlap the background a little: you'll define them later.",
+      "blockNear": "Cover the masses of the foreground and the main subject. Now the whole canvas is covered: check that the light and dark relationships work.",
+      "shadows": "Go back over the masses and build the forms starting from shadows and midtones. Use thicker paint and smaller brushes.",
+      "lights": "Add the light areas over the midtones to create volume. Lights always go over darks, not the other way around.",
+      "details": "Define edges, textures and small elements, first in the distant areas and then on the subject. Use small brushes and precise touches."
+    },
+    "od": {
+      "ground": "Cover the whole canvas with a thin wash of burnt sienna or burnt umber thinned with solvent, and wipe off the excess with a rag. The drawing should stay visible.",
+      "blockFar": "Start with the farthest areas, such as sky and background, using lean paint thinned with solvent. Broad, flat areas: you are setting the overall color and value."
+    },
+    "wt": {
+      "blockFar": "First wash: background",
+      "blockMid": "Middle-ground washes",
+      "blockNear": "Foreground washes",
+      "wMid": "Midtone glazes",
+      "wDark": "Shadows",
+      "details": "Details"
+    },
+    "wd": {
+      "blockFar": "Wet the paper and lay the broadest, lightest washes of the distant areas, such as sky and background, wet-on-wet. Let it dry completely.",
+      "blockMid": "Lay the light washes of the middle ground. Leave the paper white where you need highlights.",
+      "blockNear": "Lay the light washes of the foreground and the subject. Remember: in watercolor the white is the paper and cannot be recovered.",
+      "wMid": "Layer stronger washes only when the layer below is dry, to build volume without muddying the colors.",
+      "wDark": "Darken the shadows and define the forms with less water. Painting on dry paper gives you crisp edges.",
+      "details": "Define edges and small elements with less water and a pointed brush, first in the distant areas and then on the subject."
+    }
+  },
+  "fr": {
+    "ui": {
+      "wModel": "Téléchargement du modèle de profondeur (la première fois seulement)… {p} %",
+      "wDepth": "J'estime la profondeur du tableau…",
+      "wFallback": "Modèle indisponible : j'utilise la méthode simplifiée…",
+      "wPlan": "J'organise les couches de peinture…",
+      "depthAI": "Ordre des zones calculé avec le modèle de profondeur (IA).",
+      "depthSimple": "Ordre des zones calculé avec la méthode simplifiée : le modèle de profondeur n'était pas disponible."
+    },
+    "pt": {
+      "ground": "Fond coloré",
+      "blockFar": "Ébauche : arrière-plan",
+      "blockMid": "Ébauche : plans intermédiaires",
+      "blockNear": "Ébauche : premier plan",
+      "shadows": "Ombres et demi-teintes",
+      "lights": "Lumières et volumes",
+      "details": "Détails",
+      "final": "Dernières lumières et retouches"
+    },
+    "pd": {
+      "ground": "Couvrez toute la toile d'un jus fin et transparent d'une couleur chaude et neutre : il supprime le blanc de la toile et aide à juger les valeurs. Le dessin doit rester visible.",
+      "blockFar": "Commencez par les zones les plus lointaines, comme le ciel et le fond. Posez des aplats larges, sans détails : vous fixez la couleur et la valeur générales.",
+      "blockMid": "Avancez avec les masses des plans intermédiaires. Laissez les bords déborder un peu sur le fond : vous les préciserez plus tard.",
+      "blockNear": "Couvrez les masses du premier plan et du sujet principal. Toute la toile est maintenant couverte : vérifiez que les rapports de clair et de foncé fonctionnent.",
+      "shadows": "Reprenez les masses et construisez les formes en partant des ombres et des demi-teintes. Utilisez une peinture plus épaisse et des pinceaux plus petits.",
+      "lights": "Ajoutez les zones claires par-dessus les demi-teintes pour donner du volume. Les lumières se posent toujours sur les sombres, jamais l'inverse.",
+      "details": "Précisez contours, textures et petits éléments, d'abord dans les zones lointaines puis sur le sujet. Utilisez de petits pinceaux et des touches précises."
+    },
+    "od": {
+      "ground": "Couvrez toute la toile d'un jus fin de terre de Sienne ou de terre d'ombre brûlée dilué au solvant, puis essuyez l'excès avec un chiffon. Le dessin doit rester visible.",
+      "blockFar": "Commencez par les zones les plus lointaines, comme le ciel et le fond, avec une peinture maigre diluée au solvant. Des aplats larges : vous fixez la couleur et la valeur générales."
+    },
+    "wt": {
+      "blockFar": "Premier lavis : arrière-plan",
+      "blockMid": "Lavis des plans intermédiaires",
+      "blockNear": "Lavis du premier plan",
+      "wMid": "Glacis des demi-teintes",
+      "wDark": "Ombres",
+      "details": "Détails"
+    },
+    "wd": {
+      "blockFar": "Mouillez le papier et posez les lavis les plus larges et les plus clairs des zones lointaines, comme le ciel et le fond, mouillé sur mouillé. Laissez sécher complètement.",
+      "blockMid": "Posez les lavis clairs des plans intermédiaires. Laissez le papier blanc là où il faut des lumières.",
+      "blockNear": "Posez les lavis clairs du premier plan et du sujet. Rappel : en aquarelle, le blanc est le papier et ne se récupère pas.",
+      "wMid": "Superposez des lavis plus chargés seulement quand la couche du dessous est sèche, pour construire le volume sans salir les couleurs.",
+      "wDark": "Assombrissez les ombres et définissez les formes avec moins d'eau. Sur papier sec, vous obtenez des bords nets.",
+      "details": "Précisez les contours et les petits éléments avec moins d'eau et un pinceau pointu, d'abord dans les zones lointaines puis sur le sujet."
+    }
+  },
+  "es": {
+    "ui": {
+      "wModel": "Descargando el modelo de profundidad (solo la primera vez)… {p} %",
+      "wDepth": "Estimando la profundidad del cuadro…",
+      "wFallback": "Modelo no disponible: uso el método simplificado…",
+      "wPlan": "Organizando las capas de pintura…",
+      "depthAI": "Orden de las zonas calculado con el modelo de profundidad (IA).",
+      "depthSimple": "Orden de las zonas calculado con el método simplificado: el modelo de profundidad no estaba disponible."
+    },
+    "pt": {
+      "ground": "Fondo tonal",
+      "blockFar": "Encaje: fondo",
+      "blockMid": "Encaje: planos intermedios",
+      "blockNear": "Encaje: primer plano",
+      "shadows": "Sombras y medios tonos",
+      "lights": "Luces y volumen",
+      "details": "Detalles",
+      "final": "Luces finales y retoques"
+    },
+    "pd": {
+      "ground": "Cubre todo el lienzo con una veladura fina y transparente de un color cálido y neutro: elimina el blanco del lienzo y te ayuda a juzgar los valores. El dibujo debe seguir viéndose.",
+      "blockFar": "Empieza por las zonas más lejanas, como el cielo y el fondo. Extiende manchas amplias y planas, sin detalles: estás fijando el color y el valor generales.",
+      "blockMid": "Avanza hacia delante con las masas de los planos intermedios. Deja que los bordes invadan un poco el fondo: los definirás después.",
+      "blockNear": "Cubre las masas del primer plano y del sujeto principal. Ahora todo el lienzo está cubierto: comprueba que las relaciones entre claros y oscuros funcionan.",
+      "shadows": "Vuelve sobre las masas y construye las formas empezando por las sombras y los medios tonos. Usa pintura más espesa y pinceles más pequeños.",
+      "lights": "Añade las zonas claras sobre los medios tonos para dar volumen. Las luces van siempre encima de los oscuros, no al revés.",
+      "details": "Define contornos, texturas y elementos pequeños, primero en las zonas lejanas y luego en el sujeto. Usa pinceles pequeños y toques precisos."
+    },
+    "od": {
+      "ground": "Cubre todo el lienzo con una veladura fina de siena o sombra tostada diluida con disolvente y retira el exceso con un trapo. El dibujo debe seguir viéndose.",
+      "blockFar": "Empieza por las zonas más lejanas, como el cielo y el fondo, con pintura magra diluida con disolvente. Manchas amplias y planas: estás fijando el color y el valor generales."
+    },
+    "wt": {
+      "blockFar": "Primera aguada: fondo",
+      "blockMid": "Aguadas de los planos intermedios",
+      "blockNear": "Aguadas del primer plano",
+      "wMid": "Veladuras de medios tonos",
+      "wDark": "Sombras",
+      "details": "Detalles"
+    },
+    "wd": {
+      "blockFar": "Moja el papel y extiende las aguadas más amplias y claras de las zonas lejanas, como el cielo y el fondo, húmedo sobre húmedo. Deja secar por completo.",
+      "blockMid": "Extiende las aguadas claras de los planos intermedios. Deja el papel en blanco donde necesites luces.",
+      "blockNear": "Extiende las aguadas claras del primer plano y del sujeto. Recuerda: en acuarela el blanco es el papel y no se recupera.",
+      "wMid": "Superpón aguadas más cargadas solo cuando la capa inferior esté seca, para construir volumen sin ensuciar los colores.",
+      "wDark": "Oscurece las sombras y define las formas con menos agua. Pintando sobre papel seco obtienes bordes nítidos.",
+      "details": "Define contornos y elementos pequeños con menos agua y un pincel de punta, primero en las zonas lejanas y luego en el sujeto."
+    }
+  },
+  "de": {
+    "ui": {
+      "wModel": "Tiefenmodell wird geladen (nur beim ersten Mal)… {p} %",
+      "wDepth": "Ich schätze die Tiefe des Bildes…",
+      "wFallback": "Modell nicht verfügbar: Ich nutze die vereinfachte Methode…",
+      "wPlan": "Ich plane die Farbschichten…",
+      "depthAI": "Reihenfolge der Bereiche mit dem KI-Tiefenmodell berechnet.",
+      "depthSimple": "Reihenfolge der Bereiche mit der vereinfachten Methode berechnet: Das Tiefenmodell war nicht verfügbar."
+    },
+    "pt": {
+      "ground": "Getönter Grund",
+      "blockFar": "Anlage: Hintergrund",
+      "blockMid": "Anlage: Mittelgrund",
+      "blockNear": "Anlage: Vordergrund",
+      "shadows": "Schatten und Mitteltöne",
+      "lights": "Lichter und Volumen",
+      "details": "Details",
+      "final": "Letzte Lichter und Feinschliff"
+    },
+    "pd": {
+      "ground": "Überziehe die ganze Leinwand mit einer dünnen, transparenten Lasur in einem warmen, neutralen Ton: Sie nimmt der Leinwand das Weiß und hilft dir, die Tonwerte zu beurteilen. Die Zeichnung soll sichtbar bleiben.",
+      "blockFar": "Beginne mit den entferntesten Bereichen wie Himmel und Hintergrund. Trage breite, flache Farbflächen ohne Details auf: Du legst Farbe und Tonwert fest.",
+      "blockMid": "Arbeite dich mit den Massen des Mittelgrunds nach vorn. Die Kanten dürfen etwas in den Hintergrund ragen: Du präzisierst sie später.",
+      "blockNear": "Bedecke die Massen des Vordergrunds und des Hauptmotivs. Jetzt ist die ganze Leinwand bedeckt: Prüfe, ob die Hell-Dunkel-Verhältnisse stimmen.",
+      "shadows": "Geh zurück zu den Massen und baue die Formen von den Schatten und Mitteltönen aus auf. Verwende pastosere Farbe und kleinere Pinsel.",
+      "lights": "Setze die hellen Bereiche über die Mitteltöne, um Volumen zu erzeugen. Lichter kommen immer über die Dunkeltöne, nicht umgekehrt.",
+      "details": "Arbeite Kanten, Texturen und kleine Elemente heraus, zuerst in den entfernten Bereichen, dann am Motiv. Verwende kleine Pinsel und präzise Striche."
+    },
+    "od": {
+      "ground": "Überziehe die ganze Leinwand mit einer dünnen Lasur aus Siena oder Umbra gebrannt, mit Lösungsmittel verdünnt, und nimm den Überschuss mit einem Lappen ab. Die Zeichnung soll sichtbar bleiben.",
+      "blockFar": "Beginne mit den entferntesten Bereichen wie Himmel und Hintergrund, mit magerer, mit Lösungsmittel verdünnter Farbe. Breite, flache Flächen: Du legst Farbe und Tonwert fest."
+    },
+    "wt": {
+      "blockFar": "Erste Lavierung: Hintergrund",
+      "blockMid": "Lavierungen des Mittelgrunds",
+      "blockNear": "Lavierungen des Vordergrunds",
+      "wMid": "Lasuren der Mitteltöne",
+      "wDark": "Schatten",
+      "details": "Details"
+    },
+    "wd": {
+      "blockFar": "Befeuchte das Papier und lege die größten, hellsten Lavierungen der entfernten Bereiche wie Himmel und Hintergrund nass in nass an. Lass alles vollständig trocknen.",
+      "blockMid": "Lege die hellen Lavierungen des Mittelgrunds an. Lass das Papier dort weiß, wo du Lichter brauchst.",
+      "blockNear": "Lege die hellen Lavierungen des Vordergrunds und des Motivs an. Denk daran: Beim Aquarell ist das Weiß das Papier und lässt sich nicht zurückholen.",
+      "wMid": "Lege kräftigere Lasuren erst darüber, wenn die untere Schicht trocken ist, um Volumen aufzubauen, ohne die Farben zu verschmutzen.",
+      "wDark": "Vertiefe die Schatten und definiere die Formen mit weniger Wasser. Auf trockenem Papier entstehen scharfe Kanten.",
+      "details": "Arbeite Kanten und kleine Elemente mit weniger Wasser und einem spitzen Pinsel heraus, zuerst in den entfernten Bereichen, dann am Motiv."
+    }
+  }
+};
+Object.keys(I18N_LAYERS).forEach((l) => {
+  const src = I18N_LAYERS[l], dst = I18N[l];
+  Object.assign(dst.ui, src.ui);
+  Object.assign(dst.phase.paint.title, src.pt);
+  Object.assign(dst.phase.paint.desc, src.pd);
+  Object.assign(dst.phase.oil.desc, src.od);
+  Object.assign(dst.phase.wat.title, src.wt);
+  Object.assign(dst.phase.wat.desc, src.wd);
+});
+
 if (typeof module !== 'undefined') module.exports = I18N;

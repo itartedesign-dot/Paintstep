@@ -6,31 +6,21 @@ L'app è statica: HTML, CSS e JavaScript, senza librerie e senza server. L'immag
 
 ## Come funziona
 
-1. **Caricamento** – scegli l'immagine e la tecnica (acrilico, olio, acquerello) e i colori che hai a disposizione (solo primari, oppure primari + terre, rosso di cadmio e oltremare).
-2. **Misure della tela** – facoltative. Se le proporzioni sono diverse dall'originale, puoi spostare e ingrandire il dipinto dentro la tela (trascinamento, rotellina, due dita o pulsanti): lo zoom è limitato in modo che la tela sia sempre piena, senza spazi vuoti.
-3. **Analisi** – l'app misura la complessità del dipinto (densità dei contorni e varietà di colori) e decide il numero di step, da 6 a 20.
-4. **Step**
-   - *Step 1*: disegno preparatorio ricavato dai contorni dell'opera.
-   - *Step successivi*: dalle grandi masse sfocate con pochi colori fino ai dettagli, aumentando via via il numero di tinte e la nitidezza. In ogni step vengono ridipinte solo le zone che cambiano davvero.
-   - *Acquerello*: gli step procedono dal chiaro allo scuro, come nella tecnica reale a velature.
-5. **Scheda colore** – per ogni tinta calcola la miscela con un modello di mescolanza sottrattiva (Kubelka–Munk), cercando la combinazione di 1–4 pigmenti più vicina, e mostra dove stenderla in quello step.
+1. **Caricamento** – scegli l'immagine, la tecnica (acrilico, olio, acquerello) e i colori che hai a disposizione.
+2. **Misure della tela** – facoltative. Se le proporzioni sono diverse dall'originale, sposti e ingrandisci il dipinto dentro la tela: lo zoom è limitato in modo che la tela sia sempre piena.
+3. **Analisi della profondità** – l'app stima cosa sta davanti e cosa sta dietro con il modello di intelligenza artificiale *Depth Anything V2 Small*, che gira nel browser tramite Transformers.js. Il modello (circa 27 MB) **non è nel repository**: viene scaricato da Hugging Face alla prima analisi e poi resta in memoria nel browser. Se il download non riesce (rete assente o lenta, dispositivo non compatibile), l'app passa da sola al **metodo semplificato**, basato su posizione, dettaglio e saturazione delle zone. Sotto il quadro una nota indica quale metodo è stato usato.
+4. **Step (6–20)** – costruiti come strati di pittura veri, con pennellate simulate che seguono le forme:
+   - disegno preparatorio;
+   - fondo tonale (olio e acrilico, nei quadri più complessi);
+   - abbozzo per zone, dal fondo al primo piano, con pennelli larghi;
+   - ombre e mezzi toni, poi luci (acquerello: prima i mezzi toni, poi le ombre, lasciando bianca la carta dove servono le luci);
+   - dettagli, dal lontano al vicino;
+   - luci finali e ritocchi.
+5. **Scheda colore** – per ogni tinta calcola la miscela con un modello di mescolanza sottrattiva (Kubelka–Munk) e mostra dove stenderla in quello step.
 
-Ogni step mostra anche i pennelli consigliati (disegnati) e se lavorare con tela o carta bagnata o asciutta e con pennello umido o asciutto. Il tasto **Dividi opera** accanto al quadro mostra una croce (rossa, nera, bianca, gialla o verde) che divide l'opera in quattro parti uguali: toccando una parte si apre lo stesso step ingrandito su quella zona, con i suoi colori, e la freccia sotto riporta all'opera intera.
+Ogni step mostra i pennelli consigliati e se lavorare bagnato o asciutto. Le frecce **Precedente / Successivo** sono subito sotto il quadro. Il tasto **Dividi opera** mostra una croce colorata che divide l'opera in quattro parti: toccando una parte si apre lo stesso step ingrandito, e la freccia centrale riporta all'opera intera.
 
-Comandi utili: frecce della tastiera o swipe sulla tela per cambiare step, "Mostra dove dipingere" per evidenziare le zone dello step, "Tieni premuto: originale" per confrontare con il dipinto.
-
-## Pubblicarla su GitHub Pages
-
-1. Crea un nuovo repository su GitHub, per esempio `paintstep`.
-2. Carica i file `index.html`, `style.css`, `app.js`, `i18n.js` e `README.md` nella radice del repository (pulsante **Add file → Upload files**).
-3. Vai in **Settings → Pages**, in *Build and deployment* scegli **Deploy from a branch**, branch `main`, cartella `/ (root)` e salva.
-4. Dopo un minuto l'app sarà online su `https://TUO-UTENTE.github.io/paintstep/`.
-
-Per provarla in locale basta aprire `index.html` nel browser.
-
-## Personalizzare i colori
-
-I pigmenti sono definiti in `app.js`, negli oggetti `BASE` (per tecnica) ed `EXTRA` (tavolozza estesa). Ogni pigmento ha un nome, un colore esadecimale e una forza tintoria (`str`): puoi aggiungere i colori delle tue marche preferite o regolarne la forza.
+L'immagine del dipinto non lascia mai il dispositivo: dall'esterno si scaricano solo la libreria e il modello.
 
 ## Contatti e donazioni
 

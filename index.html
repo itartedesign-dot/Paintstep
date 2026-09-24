@@ -159,18 +159,30 @@
         </aside>
       </div>
 
-      <p class="size-info" id="sizeInfo" hidden></p>
+      <nav class="steps-nav" data-i18n-aria="stepsNav">
+        <button class="nav-arrow" id="prevBtn">
+          <span class="knob"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5l-7 7 7 7M4 12h16"/></svg></span>
+          <span class="nav-label" data-i18n="prev"></span>
+        </button>
+        <button class="nav-arrow back-whole" id="backWholeBtn" hidden>
+          <span class="knob"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11l7-7 7 7M12 4v16"/></svg></span>
+          <span class="nav-label" data-i18n="backWhole"></span>
+        </button>
+        <button class="nav-arrow" id="nextBtn">
+          <span class="knob"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5l7 7-7 7M20 12H4"/></svg></span>
+          <span class="nav-label" data-i18n="next"></span>
+        </button>
+      </nav>
 
-      <button class="back-whole" id="backWholeBtn" hidden>
-        <svg viewBox="0 0 16 48" aria-hidden="true"><path d="M8 46V3M2 10l6-8 6 8"/></svg>
-        <span data-i18n="backWhole"></span>
-      </button>
+      <p class="size-info" id="sizeInfo" hidden></p>
 
       <div class="canvas-tools">
         <button class="chip" id="zonesBtn" aria-pressed="false" data-i18n="zones"></button>
         <button class="chip" id="origBtn" data-i18n="orig"></button>
         <button class="chip" id="dlBtn" data-i18n="download"></button>
       </div>
+
+      <p class="depth-note" id="depthNote"></p>
 
       <div class="stroke">
         <svg class="down-arrow" viewBox="0 0 16 56" aria-hidden="true"><path d="M8 1v52M2 46l6 8 6-8"/></svg>
@@ -195,16 +207,6 @@
         </div>
       </div>
 
-      <nav class="steps-nav" data-i18n-aria="stepsNav">
-        <button class="nav-arrow" id="prevBtn">
-          <svg viewBox="0 0 72 16" aria-hidden="true"><path d="M71 8H2M9 1L2 8l7 7"/></svg>
-          <span data-i18n="prev"></span>
-        </button>
-        <button class="nav-arrow" id="nextBtn">
-          <svg viewBox="0 0 72 16" aria-hidden="true"><path d="M1 8h69M63 1l7 7-7 7"/></svg>
-          <span data-i18n="next"></span>
-        </button>
-      </nav>
 
       <p class="disclaimer" data-i18n="disclaimer"></p>
     </section>

@@ -329,71 +329,328 @@ const PaintCore = (() => {
     return { score, steps: clamp(Math.round(6 + 14 * score), 6, 20), kmax: Math.round(12 + 16 * score) };
   }
 
-  /* ---------- fasi, pennelli e umidità ---------- */
-  function phaseKey(s, N) {
-    if (s === 1) return 'sketch';
-    if (s === 2) return 'block';
-    if (s === N) return 'final';
-    const t = (s - 2) / (N - 2);
-    return t < 0.4 ? 'masses' : t < 0.7 ? 'mids' : 'define';
+  /* =========================================================
+     PROFONDITÀ
+     depth: Uint8Array, 0 = lontano, 255 = vicino
+     ========================================================= */
+  function boxBlur1(src, w, h, r) {
+    if (r < 1) return Float32Array.from(src);
+    let a = Float32Array.from(src), b = new Float32Array(src.length);
+    const d = 2 * r + 1;
+    for (let pass = 0; pass < 3; pass++) {
+      for (let y = 0; y < h; y++) {
+        const row = y * w;
+        let sum = 0;
+        for (let k = -r; k <= r; k++) sum += a[row + clamp(k, 0, w - 1)];
+        for (let x = 0; x < w; x++) {
+          b[row + x] = sum / d;
+          sum += a[row + Math.min(w - 1, x + r + 1)] - a[row + Math.max(0, x - r)];
+        }
+      }
+      for (let x = 0; x < w; x++) {
+        let sum = 0;
+        for (let k = -r; k <= r; k++) sum += b[clamp(k, 0, h - 1) * w + x];
+        for (let y = 0; y < h; y++) {
+          a[y * w + x] = sum / d;
+          sum += b[Math.min(h - 1, y + r + 1) * w + x] - b[Math.max(0, y - r) * w + x];
+        }
+      }
+    }
+    return a;
   }
-  const PLAN = {
-    acrilico: {
-      sketch: { s: 'dryCanvas', b: 'damp', br: ['pencil', 'roundS'] },
-      block: { s: 'dryCanvas', b: 'damp', br: ['flatL', 'filbertL'] },
-      masses: { s: 'mistCanvas', b: 'damp', br: ['filbertM', 'flatM'] },
-      mids: { s: 'dryCanvas', b: 'damp', br: ['filbertM', 'roundM'] },
-      define: { s: 'dryCanvas', b: 'dry', br: ['roundS', 'flatS', 'fan'] },
-      final: { s: 'dryCanvas', b: 'damp', br: ['liner', 'roundS'] },
-    },
-    olio: {
-      sketch: { s: 'dryCanvas', b: 'solvent', br: ['roundS'] },
-      block: { s: 'dryCanvas', b: 'solvent', br: ['flatL', 'filbertL'] },
-      masses: { s: 'freshOil', b: 'dryOil', br: ['filbertM', 'flatM'] },
-      mids: { s: 'freshOil', b: 'dryOil', br: ['filbertM', 'roundM'] },
-      define: { s: 'freshOil', b: 'dryOil', br: ['roundS', 'fan'] },
-      final: { s: 'freshOil', b: 'dryOil', br: ['liner', 'roundS'] },
-    },
-    acquerello: {
-      sketch: { s: 'dryPaper', b: null, br: ['pencil'] },
-      block: { s: 'wetPaper', b: 'loaded', br: ['flatWash', 'mop'] },
-      masses: { s: 'dampPaper', b: 'loaded', br: ['mop', 'roundL'] },
-      mids: { s: 'dryPaper', b: 'damp', br: ['roundM', 'roundL'] },
-      define: { s: 'dryPaper', b: 'damp', br: ['roundS', 'flatS'] },
-      final: { s: 'dryPaper', b: 'dry', br: ['liner', 'roundS'] },
-    },
-  };
 
-  /* ---------- colori usati in uno step (eventualmente in una zona) ---------- */
-  function stepSwatches(img, changed, w, h, region) {
+  function normalize8(arr) {
+    const n = arr.length;
+    let mn = Infinity, mx = -Infinity;
+    for (let i = 0; i < n; i++) { if (arr[i] < mn) mn = arr[i]; if (arr[i] > mx) mx = arr[i]; }
+    /* percentili 2–98 per robustezza */
+    const hist = new Uint32Array(1024);
+    const span = mx - mn || 1;
+    for (let i = 0; i < n; i++) hist[Math.min(1023, (((arr[i] - mn) / span) * 1023) | 0)]++;
+    let acc = 0, lo = 0, hi = 1023;
+    for (let v = 0; v < 1024; v++) { acc += hist[v]; if (acc >= n * 0.02) { lo = v; break; } }
+    acc = 0;
+    for (let v = 1023; v >= 0; v--) { acc += hist[v]; if (acc >= n * 0.02) { hi = v; break; } }
+    const a = mn + (lo / 1023) * span, b = mn + (hi / 1023) * span;
+    const out = new Uint8Array(n);
+    for (let i = 0; i < n; i++) out[i] = clamp(Math.round(((arr[i] - a) / (b - a || 1)) * 255), 0, 255);
+    return out;
+  }
+
+  /* Metodo semplificato: in basso, dettagliato e saturo = vicino */
+  function heuristicDepth(px, w, h) {
+    const n = w * h;
+    const mag = sobel(grayOf(blur(px, w, h, 2), n), w, h);
+    const det = boxBlur1(mag, w, h, Math.round(Math.max(w, h) / 40));
+    const sat = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const r = px[i * 3], g = px[i * 3 + 1], b = px[i * 3 + 2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      sat[i] = mx ? (mx - mn) / mx : 0;
+    }
+    const satB = boxBlur1(sat, w, h, Math.round(Math.max(w, h) / 40));
+    let dMax = 0; for (let i = 0; i < n; i++) if (det[i] > dMax) dMax = det[i];
+    const raw = new Float32Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      raw[i] = 0.5 * (y / (h - 1 || 1)) + 0.32 * (det[i] / (dMax || 1)) + 0.18 * satB[i];
+    }
+    return normalize8(boxBlur1(raw, w, h, Math.round(Math.max(w, h) / 60)));
+  }
+
+  function prepareDepth(raw, w, h) {
+    return normalize8(boxBlur1(raw, w, h, 2));
+  }
+
+  /* Divide la profondità in L strati (k-means 1D, con ripiego a quantili) */
+  function depthBands(depth, n, L, reserved) {
+    const hist = new Float64Array(256);
+    let tot = 0;
+    for (let i = 0; i < n; i++) if (!reserved[i]) { hist[depth[i]]++; tot++; }
+    const quantile = (q) => { let acc = 0; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= tot * q) return v; } return 255; };
+    let C = Array.from({ length: L }, (_, k) => quantile((k + 0.5) / L));
+    for (let it = 0; it < 30; it++) {
+      const s = new Float64Array(L), c = new Float64Array(L);
+      for (let v = 0; v < 256; v++) {
+        if (!hist[v]) continue;
+        let bk = 0, bd = Infinity;
+        for (let k = 0; k < L; k++) { const d = Math.abs(v - C[k]); if (d < bd) { bd = d; bk = k; } }
+        s[bk] += v * hist[v]; c[bk] += hist[v];
+      }
+      C = C.map((old, k) => (c[k] ? s[k] / c[k] : old));
+    }
+    C.sort((a, b) => a - b);
+    const lut = new Uint8Array(256);
+    for (let v = 0; v < 256; v++) {
+      let bk = 0, bd = Infinity;
+      for (let k = 0; k < L; k++) { const d = Math.abs(v - C[k]); if (d < bd) { bd = d; bk = k; } }
+      lut[v] = bk;
+    }
+    const area = new Float64Array(L);
+    for (let v = 0; v < 256; v++) area[lut[v]] += hist[v];
+    if ([...area].some((a) => a < tot * 0.04)) {
+      /* strati troppo piccoli: uso quantili ad area uguale */
+      const cuts = Array.from({ length: L - 1 }, (_, k) => quantile((k + 1) / L));
+      for (let v = 0; v < 256; v++) { let k = 0; while (k < cuts.length && v > cuts[k]) k++; lut[v] = k; }
+    }
+    const band = new Uint8Array(n);
+    for (let i = 0; i < n; i++) band[i] = lut[depth[i]];
+    return band;
+  }
+
+  /* =========================================================
+     IMMAGINI OBIETTIVO
+     ========================================================= */
+  function quantTarget(px, w, h, radius, K, rnd, lighten, paper) {
+    const n = w * h;
+    const bl = blur(px, w, h, radius);
+    let pal = kmeans(bl, n, K, rnd);
+    if (lighten != null) {
+      const Yp = lumY(...paper), Yf = Math.pow((lighten + 16) / 116, 3);
+      pal = pal.map((c) => {
+        const Y = lumY(...c);
+        if (Y >= Yf) return c;
+        const f = (Yp - Yf) / (Yp - Y);
+        return c.map((v, j) => toSrgb(LIN[paper[j]] + (LIN[v] - LIN[paper[j]]) * f));
+      });
+    }
+    const idx = quantize(bl, n, pal);
+    const T = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) { const c = pal[idx[i]]; T[i * 4] = c[0]; T[i * 4 + 1] = c[1]; T[i * 4 + 2] = c[2]; T[i * 4 + 3] = 255; }
+    return T;
+  }
+  function rgbaFrom(px, n) {
+    const T = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) { T[i * 4] = px[i * 3]; T[i * 4 + 1] = px[i * 3 + 1]; T[i * 4 + 2] = px[i * 3 + 2]; T[i * 4 + 3] = 255; }
+    return T;
+  }
+
+  /* =========================================================
+     PENNELLATE SIMULATE
+     ========================================================= */
+  function orientationField(px, w, h) {
+    const n = w * h;
+    const g = grayOf(blur(px, w, h, 4), n);
+    const ang = new Float32Array(n);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      let gx = 0, gy = 0;
+      if (x > 0 && x < w - 1 && y > 0 && y < h - 1) {
+        gx = -g[i - w - 1] - 2 * g[i - 1] - g[i + w - 1] + g[i - w + 1] + 2 * g[i + 1] + g[i + w + 1];
+        gy = -g[i - w - 1] - 2 * g[i - w] - g[i - w + 1] + g[i + w - 1] + 2 * g[i + w] + g[i + w + 1];
+      }
+      ang[i] = Math.hypot(gx, gy) > 12
+        ? Math.atan2(gy, gx) + Math.PI / 2
+        : -0.35 + 0.3 * Math.sin(x * 0.05 + y * 0.031);
+    }
+    return ang;
+  }
+
+  function dilate(mask, w, h, r) {
+    if (r < 1) return mask;
+    const f = boxBlur1(mask, w, h, Math.ceil(r / 1.7));
+    const out = new Uint8Array(w * h);
+    for (let i = 0; i < out.length; i++) out[i] = f[i] > 0.02 ? 1 : 0;
+    return out;
+  }
+
+  const cdiff = (A, o, B, q) => Math.abs(A[o] - B[q]) + Math.abs(A[o + 1] - B[q + 1]) + Math.abs(A[o + 2] - B[q + 2]);
+
+  function paintStrokes(env, T, mask, R, thr, opt = {}) {
+    const { w, h, ctx, layer, lctx, maskCv, mctx, orient, rnd } = env;
+    const cur = ctx.getImageData(0, 0, w, h).data;
+    const pts = [];
+    const stepG = Math.max(1, R * 0.9);
+    for (let gy = stepG / 2; gy < h; gy += stepG) for (let gx = stepG / 2; gx < w; gx += stepG) {
+      const x = clamp(Math.round(gx + (rnd() - 0.5) * stepG * 0.7), 0, w - 1);
+      const y = clamp(Math.round(gy + (rnd() - 0.5) * stepG * 0.7), 0, h - 1);
+      const i = y * w + x;
+      if (!mask[i]) continue;
+      if (cdiff(T, i * 4, cur, i * 4) < thr) continue;
+      pts.push(i);
+    }
+    if (!pts.length) return 0;
+    for (let i = pts.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pts[i], pts[j]] = [pts[j], pts[i]]; }
+
+    lctx.clearRect(0, 0, w, h);
+    lctx.globalCompositeOperation = 'source-over';
+    lctx.lineCap = 'round'; lctx.lineJoin = 'round';
+    lctx.lineWidth = Math.max(1, 2 * R);
+    const maxSeg = opt.maxSeg ?? 5;
+    const jit = opt.jitter ?? 0;
+    for (const i of pts) {
+      const o = i * 4;
+      const r = T[o], g = T[o + 1], b = T[o + 2];
+      const j = jit ? (rnd() - 0.5) * jit : 0;
+      lctx.strokeStyle = `rgb(${clamp(r + j, 0, 255) | 0},${clamp(g + j, 0, 255) | 0},${clamp(b + j, 0, 255) | 0})`;
+      const x0 = i % w, y0 = (i / w) | 0;
+      const path = [[x0 + 0.5, y0 + 0.5]];
+      for (const sign of [1, -1]) {
+        let x = x0 + 0.5, y = y0 + 0.5;
+        let dx = Math.cos(orient[i]) * sign, dy = Math.sin(orient[i]) * sign;
+        const segs = sign === 1 ? maxSeg : Math.ceil(maxSeg / 3);
+        for (let k = 0; k < segs; k++) {
+          const nx = x + dx * R, ny = y + dy * R;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) break;
+          const q = ((ny | 0) * w + (nx | 0));
+          if (Math.abs(T[q * 4] - r) + Math.abs(T[q * 4 + 1] - g) + Math.abs(T[q * 4 + 2] - b) > thr * 1.3 + 12) break;
+          let ndx = Math.cos(orient[q]), ndy = Math.sin(orient[q]);
+          if (ndx * dx + ndy * dy < 0) { ndx = -ndx; ndy = -ndy; }
+          dx = dx * 0.4 + ndx * 0.6; dy = dy * 0.4 + ndy * 0.6;
+          const len = Math.hypot(dx, dy) || 1; dx /= len; dy /= len;
+          x = nx; y = ny;
+          if (sign === 1) path.push([x, y]); else path.unshift([x, y]);
+        }
+      }
+      lctx.beginPath();
+      lctx.moveTo(path[0][0], path[0][1]);
+      if (path.length === 1) lctx.lineTo(path[0][0] + 0.01, path[0][1]);
+      for (let k = 1; k < path.length; k++) lctx.lineTo(path[k][0], path[k][1]);
+      lctx.stroke();
+    }
+    if (opt.clip !== false) {
+      const dm = dilate(mask, w, h, opt.spill ?? R * 0.5);
+      const md = mctx.createImageData(w, h);
+      for (let i = 0; i < w * h; i++) md.data[i * 4 + 3] = dm[i] ? 255 : 0;
+      mctx.putImageData(md, 0, 0);
+      lctx.globalCompositeOperation = 'destination-in';
+      lctx.drawImage(maskCv, 0, 0);
+      lctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.globalAlpha = opt.alpha ?? 1;
+    ctx.drawImage(layer, 0, 0);
+    ctx.globalAlpha = 1;
+    return pts.length;
+  }
+
+  /* =========================================================
+     COLORI USATI (raggruppati) + mappa per "dove stenderla"
+     ========================================================= */
+  const key15 = (T, o) => ((T[o] >> 3) << 10) | ((T[o + 1] >> 3) << 5) | (T[o + 2] >> 3);
+  function computeSwatches(T, changed, w, h, region) {
     const R = region || { x: 0, y: 0, w, h };
-    const counts = new Map();
+    const cnt = new Uint32Array(32768), sr = new Float64Array(32768), sg = new Float64Array(32768), sb = new Float64Array(32768);
     let total = 0;
     for (let y = R.y; y < R.y + R.h; y++) for (let x = R.x; x < R.x + R.w; x++) {
       const i = y * w + x;
       if (!changed[i]) continue;
-      const key = (img[i * 4] << 16) | (img[i * 4 + 1] << 8) | img[i * 4 + 2];
-      counts.set(key, (counts.get(key) || 0) + 1); total++;
+      const o = i * 4, k = key15(T, o);
+      cnt[k]++; sr[k] += T[o]; sg[k] += T[o + 1]; sb[k] += T[o + 2]; total++;
     }
+    const bins = [];
+    for (let k = 0; k < 32768; k++) if (cnt[k]) bins.push(k);
+    bins.sort((a, b) => cnt[b] - cnt[a]);
     const groups = [];
-    [...counts.entries()].sort((a, b) => b[1] - a[1]).forEach(([key, c]) => {
-      const rgb = [(key >> 16) & 255, (key >> 8) & 255, key & 255];
+    const binGroup = new Int16Array(32768).fill(-1);
+    for (const k of bins) {
+      const rgb = [Math.round(sr[k] / cnt[k]), Math.round(sg[k] / cnt[k]), Math.round(sb[k] / cnt[k])];
       const L = lab(rgb[0], rgb[1], rgb[2]);
-      const g = groups.find((gr) => dE(gr.lab, L) < 8);
-      if (g) { g.count += c; g.keys.add(key); }
-      else groups.push({ rgb, lab: L, count: c, keys: new Set([key]) });
-    });
-    return groups
+      let best = -1, bd = Infinity;
+      for (let g = 0; g < groups.length; g++) { const d = dE(groups[g].lab, L); if (d < bd) { bd = d; best = g; } }
+      if (best >= 0 && (bd < 9 || groups.length >= 60)) { groups[best].count += cnt[k]; binGroup[k] = best; }
+      else { groups.push({ rgb, lab: L, count: cnt[k] }); binGroup[k] = groups.length - 1; }
+    }
+    const keep = groups
+      .map((g, gi) => ({ ...g, gi }))
       .filter((g) => g.count >= Math.max(total * 0.004, 12))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 8)
-      .map((g) => ({ rgb: g.rgb, hex: hex(...g.rgb), desc: describeColor(...g.rgb), share: g.count / total, keys: g.keys }));
+      .slice(0, 8);
+    const gToS = new Int16Array(groups.length).fill(-1);
+    keep.forEach((g, s) => { gToS[g.gi] = s; });
+    const map = new Int16Array(32768).fill(-1);
+    for (const k of bins) map[k] = gToS[binGroup[k]];
+    return {
+      swatches: keep.map((g) => ({ rgb: g.rgb, hex: hex(...g.rgb), desc: describeColor(...g.rgb), share: g.count / total })),
+      map,
+    };
   }
 
-  /* ---------- generazione degli step ---------- */
-  async function buildSteps(src, medium, onProgress = () => {}) {
+  /* =========================================================
+     FASI, PENNELLI, UMIDITÀ
+     ========================================================= */
+  const PLAN = {
+    acrilico: {
+      sketch: { s: 'dryCanvas', b: 'damp', br: ['pencil', 'roundS'] },
+      ground: { s: 'dryCanvas', b: 'loaded', br: ['flatWash', 'flatL'] },
+      blockFar: { s: 'dryCanvas', b: 'damp', br: ['flatL', 'filbertL'] },
+      blockMid: { s: 'dryCanvas', b: 'damp', br: ['flatL', 'filbertL'] },
+      blockNear: { s: 'dryCanvas', b: 'damp', br: ['filbertL', 'flatM'] },
+      shadows: { s: 'mistCanvas', b: 'damp', br: ['filbertM', 'flatM'] },
+      lights: { s: 'dryCanvas', b: 'damp', br: ['filbertM', 'roundM'] },
+      details: { s: 'dryCanvas', b: 'dry', br: ['roundS', 'flatS', 'fan'] },
+      final: { s: 'dryCanvas', b: 'damp', br: ['liner', 'roundS'] },
+    },
+    olio: {
+      sketch: { s: 'dryCanvas', b: 'solvent', br: ['roundS'] },
+      ground: { s: 'dryCanvas', b: 'solvent', br: ['flatWash', 'flatL'] },
+      blockFar: { s: 'dryCanvas', b: 'solvent', br: ['flatL', 'filbertL'] },
+      blockMid: { s: 'dryCanvas', b: 'solvent', br: ['flatL', 'filbertL'] },
+      blockNear: { s: 'dryCanvas', b: 'solvent', br: ['filbertL', 'flatM'] },
+      shadows: { s: 'freshOil', b: 'dryOil', br: ['filbertM', 'flatM'] },
+      lights: { s: 'freshOil', b: 'dryOil', br: ['filbertM', 'roundM'] },
+      details: { s: 'freshOil', b: 'dryOil', br: ['roundS', 'fan'] },
+      final: { s: 'freshOil', b: 'dryOil', br: ['liner', 'roundS'] },
+    },
+    acquerello: {
+      sketch: { s: 'dryPaper', b: null, br: ['pencil'] },
+      blockFar: { s: 'wetPaper', b: 'loaded', br: ['flatWash', 'mop'] },
+      blockMid: { s: 'dampPaper', b: 'loaded', br: ['mop', 'roundL'] },
+      blockNear: { s: 'dampPaper', b: 'loaded', br: ['roundL', 'mop'] },
+      wMid: { s: 'dryPaper', b: 'damp', br: ['roundM', 'roundL'] },
+      wDark: { s: 'dryPaper', b: 'damp', br: ['roundM', 'roundS'] },
+      details: { s: 'dryPaper', b: 'damp', br: ['roundS', 'flatS'] },
+      final: { s: 'dryPaper', b: 'dry', br: ['liner', 'roundS'] },
+    },
+  };
+
+  /* =========================================================
+     GENERAZIONE DEGLI STEP
+     getDepth: async (px, w, h, progress) => Uint8Array | null
+     ========================================================= */
+  async function buildSteps(src, medium, getDepth, onProgress = () => {}) {
     const { w, h, rgba } = src;
     const n = w * h;
+    const M = Math.max(w, h);
     const px = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { px[i * 3] = rgba[i * 4]; px[i * 3 + 1] = rgba[i * 4 + 1]; px[i * 3 + 2] = rgba[i * 4 + 2]; }
     const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -401,75 +658,185 @@ const PaintCore = (() => {
     const water = medium === 'acquerello';
     const paper = water ? [250, 249, 245] : [240, 238, 232];
 
-    onProgress(0.03, 'wMeasure'); await tick();
+    onProgress(0.02, 'wMeasure'); await tick();
     const cx = analyzeComplexity(px, w, h);
     const N = cx.steps;
-    const steps = [];
 
-    /* step 1: disegno */
-    onProgress(0.08, 'wSketch'); await tick();
+    /* 1) profondità */
+    let depth = null, ai = false;
+    if (getDepth) {
+      try {
+        const raw = await getDepth((p, key, vars) => onProgress(0.04 + 0.36 * p, key, vars));
+        if (raw && raw.length === n) {
+          let mn = 255, mx = 0; for (let i = 0; i < n; i++) { if (raw[i] < mn) mn = raw[i]; if (raw[i] > mx) mx = raw[i]; }
+          if (mx - mn > 8) { depth = prepareDepth(raw, w, h); ai = true; }
+        }
+      } catch { /* ripiego */ }
+    }
+    if (!depth) { onProgress(0.4, 'wFallback'); await tick(); depth = heuristicDepth(px, w, h); }
+
+    onProgress(0.42, 'wPlan'); await tick();
+
+    /* 2) budget degli step */
+    const hasGround = !water && N >= 8;
+    const rem = N - 1 - (hasGround ? 1 : 0);
+    let Dd = Math.max(2, Math.round(rem * 0.25));
+    let B = clamp(Math.round(rem * 0.4), 2, 6);
+    let Rf = rem - B - Dd;
+    if (Rf < 1) { Rf = 1; B = rem - Rf - Dd; }
+
+    /* bianchi riservati (acquerello) */
+    const reserved = new Uint8Array(n);
+    if (water) for (let i = 0; i < n; i++) {
+      const L = lab(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]);
+      if (L[0] > 92 && Math.hypot(L[1], L[2]) < 10) reserved[i] = 1;
+    }
+    const band = depthBands(depth, n, B, reserved);
+
+    /* 3) immagini obiettivo */
+    const Tb = quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.4)), rnd, water ? 72 : null, paper);
+    const Tm = quantTarget(px, w, h, M / 110, Math.round(cx.kmax * 0.75), rnd, water ? 40 : null, paper);
+    const Tf = quantTarget(px, w, h, 1, cx.kmax + 4, rnd, null, paper);
+    const F = rgbaFrom(blur(px, w, h, 1), n);
+
+    /* 4) tela, livello pennellate, maschera */
+    const mk = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+    const canvas = mk(), layer = mk(), maskCv = mk();
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const env = { w, h, ctx, layer, lctx: layer.getContext('2d'), maskCv, mctx: maskCv.getContext('2d'), orient: orientationField(px, w, h), rnd };
+
+    const steps = [];
+    let prev = null;
+    const snapshot = (phase, T, extra = {}) => {
+      const img = ctx.getImageData(0, 0, w, h).data;
+      const changed = new Uint8Array(n);
+      if (extra.changed) changed.set(extra.changed);
+      else for (let i = 0; i < n; i++) if (cdiff(img, i * 4, prev, i * 4) > 24) changed[i] = 1;
+      const sw = extra.swatches ? { swatches: extra.swatches, map: null } : computeSwatches(T, changed, w, h);
+      steps.push({ img, changed, phase, target: T, swatches: sw.swatches, map: sw.map, all: !!extra.swatches });
+      prev = img;
+    };
+    const progress = (k) => onProgress(0.45 + 0.54 * (k / N), 'wStep', { s: k, n: N });
+
+    /* STEP 1: disegno */
+    progress(1); await tick();
+    ctx.fillStyle = `rgb(${paper})`; ctx.fillRect(0, 0, w, h);
     const mag = sobel(grayOf(blur(px, w, h, 3), n), w, h);
     const th = Math.max(4, percentile(mag, 0.9));
     const line = water ? [118, 118, 124] : [122, 94, 76];
-    let prev = new Uint8ClampedArray(n * 4);
+    const linesCv = mk(), lcx = linesCv.getContext('2d');
+    const ld = lcx.createImageData(w, h);
     const changed1 = new Uint8Array(n);
     for (let i = 0; i < n; i++) {
       const a = clamp((mag[i] - th) / (th * 1.5), 0, 1) * 0.85;
-      prev[i * 4] = lerp(paper[0], line[0], a);
-      prev[i * 4 + 1] = lerp(paper[1], line[1], a);
-      prev[i * 4 + 2] = lerp(paper[2], line[2], a);
-      prev[i * 4 + 3] = 255;
+      ld.data[i * 4] = line[0]; ld.data[i * 4 + 1] = line[1]; ld.data[i * 4 + 2] = line[2]; ld.data[i * 4 + 3] = a * 255;
       if (a > 0.25) changed1[i] = 1;
     }
-    const sketchSwatch = { rgb: line, hex: hex(...line), desc: { b: water ? 'sketchWat' : 'sketchOil' }, share: 1, all: true, sketch: true };
-    steps.push({ img: prev, changed: changed1, phase: 'sketch', swatches: [sketchSwatch], sketch: true });
+    lcx.putImageData(ld, 0, 0);
+    ctx.drawImage(linesCv, 0, 0);
+    prev = new Uint8ClampedArray(n * 4);
+    snapshot('sketch', null, { changed: changed1, swatches: [{ rgb: line, hex: hex(...line), desc: { b: water ? 'sketchWat' : 'sketchOil' }, share: 1, sketch: true }] });
 
-    /* step 2..N */
-    const maxR = Math.max(w, h) / 26;
-    const Yp = lumY(...paper);
-    for (let s = 2; s <= N; s++) {
-      const t = (s - 2) / (N - 2);
-      onProgress(0.1 + (0.88 * (s - 1)) / (N - 1), 'wStep', { s, n: N }); await tick();
-      const radius = Math.round(maxR * Math.pow(1 - t, 1.6));
-      const K = Math.round(4 + (cx.kmax - 4) * Math.pow(t, 0.85));
-      const bl = blur(px, w, h, radius);
-      let pal = kmeans(bl, n, K, rnd);
-      if (water) {
-        /* acquerello: si procede dal chiaro allo scuro */
-        const Lfloor = 82 * Math.pow(1 - t, 1.1);
-        const Yf = Math.pow((Lfloor + 16) / 116, 3);
-        pal = pal.map((c) => {
-          const Y = lumY(...c);
-          if (Lfloor <= 8 || Y >= Yf) return c;
-          const f = (Yp - Yf) / (Yp - Y);
-          return c.map((v, j) => toSrgb(LIN[paper[j]] + (LIN[v] - LIN[paper[j]]) * f));
-        });
-      }
-      const idx = quantize(bl, n, pal);
-      const img = new Uint8ClampedArray(prev);
-      const changed = new Uint8Array(n);
-      const thr = s === N ? 12 : 24, thr2 = thr * thr;
-      for (let i = 0; i < n; i++) {
-        const c = pal[idx[i]];
-        const o = i * 4;
-        if (s === 2) {
-          const dp = (c[0] - paper[0]) ** 2 + (c[1] - paper[1]) ** 2 + (c[2] - paper[2]) ** 2;
-          if (water && dp < 100) { img[o] = paper[0]; img[o + 1] = paper[1]; img[o + 2] = paper[2]; continue; }
-        } else {
-          const d = (c[0] - prev[o]) ** 2 + (c[1] - prev[o + 1]) ** 2 + (c[2] - prev[o + 2]) ** 2;
-          if (d < thr2) continue;
-        }
-        img[o] = c[0]; img[o + 1] = c[1]; img[o + 2] = c[2];
-        changed[i] = 1;
-      }
-      steps.push({ img, changed, phase: phaseKey(s, N), swatches: stepSwatches(img, changed, w, h) });
-      prev = img;
+    /* STEP 2: fondo tonale (olio / acrilico) */
+    if (hasGround) {
+      progress(2); await tick();
+      const ground = medium === 'olio' ? [196, 158, 124] : [204, 176, 146];
+      ctx.globalAlpha = 0.85; ctx.fillStyle = `rgb(${ground})`; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.55; ctx.drawImage(linesCv, 0, 0); ctx.globalAlpha = 1;
+      snapshot('ground', null, { changed: new Uint8Array(n).fill(1), swatches: [{ rgb: ground, hex: hex(...ground), desc: describeColor(...ground), share: 1 }] });
     }
+
+    const alpha = water ? 0.82 : 1;
+    const phaseOfBand = (j) => (j === 0 ? 'blockFar' : j === B - 1 ? 'blockNear' : 'blockMid');
+
+    /* ABBOZZO: dal fondo al primo piano */
+    for (let j = 0; j < B; j++) {
+      progress(steps.length + 1); await tick();
+      const mask = new Uint8Array(n);
+      for (let i = 0; i < n; i++) if (band[i] === j && !reserved[i]) mask[i] = 1;
+      const R = lerp(M / 28, M / 42, B > 1 ? j / (B - 1) : 0);
+      paintStrokes(env, Tb, mask, R, 16, { alpha, jitter: 12, spill: R * 0.6, maxSeg: 5 });
+      paintStrokes(env, Tb, mask, R * 0.45, 30, { alpha, jitter: 8, spill: R * 0.3, maxSeg: 4 });
+      snapshot(phaseOfBand(j), Tb);
+    }
+
+    /* STRUTTURA: ombre → luci (acquerello: chiari → scuri), per profondità */
+    {
+      const gd = Rf >= 4 ? 2 : 1;
+      const gv = Math.ceil(Rf / gd);
+      const lum = new Float32Array(n);
+      const vals = [];
+      for (let i = 0; i < n; i++) { lum[i] = lumY(Tm[i * 4], Tm[i * 4 + 1], Tm[i * 4 + 2]); if (!reserved[i]) vals.push(lum[i]); }
+      vals.sort((a, b) => a - b);
+      const vq = (q) => vals[Math.min(vals.length - 1, Math.floor(q * vals.length))] ?? 0;
+      const vCuts = Array.from({ length: gv - 1 }, (_, k) => vq((k + 1) / gv));
+      const dVals = []; for (let i = 0; i < n; i++) if (!reserved[i]) dVals.push(depth[i]);
+      dVals.sort((a, b) => a - b);
+      const dMed = dVals[Math.floor(dVals.length / 2)] ?? 128;
+      const cells = [];
+      for (let dg = 0; dg < gd; dg++) for (let v = 0; v < gv; v++) cells.push([dg, water ? gv - 1 - v : v]);
+      const groupsOfSteps = [];
+      for (let s = 0; s < Rf; s++) groupsOfSteps.push(s < Rf - 1 ? [cells[s]] : cells.slice(s));
+      groupsOfSteps.forEach((cellList, s) => {
+        const mask = new Uint8Array(n);
+        for (let i = 0; i < n; i++) {
+          if (reserved[i]) continue;
+          const dg = gd === 2 ? (depth[i] > dMed ? 1 : 0) : 0;
+          let vg = 0; while (vg < vCuts.length && lum[i] > vCuts[vg]) vg++;
+          if (cellList.some(([a, b]) => a === dg && b === vg)) mask[i] = 1;
+        }
+        const firstV = cellList[0][1];
+        const darkHalf = gv > 1 && firstV < gv / 2;
+        const phase = water ? (darkHalf ? 'wDark' : 'wMid') : (darkHalf || gv === 1 ? 'shadows' : 'lights');
+        groupsOfSteps[s].phase = phase;
+        groupsOfSteps[s].mask = mask;
+      });
+      for (const gs of groupsOfSteps) {
+        progress(steps.length + 1); await tick();
+        const R = M / 80;
+        paintStrokes(env, Tm, gs.mask, R, 40, { alpha, jitter: 8, spill: R * 0.4, maxSeg: 5 });
+        paintStrokes(env, Tm, gs.mask, R * 0.5, 60, { alpha, jitter: 5, spill: R * 0.2, maxSeg: 3 });
+        snapshot(gs.phase, Tm);
+      }
+    }
+
+    /* DETTAGLI: dal lontano al vicino */
+    const detSteps = Dd - 1;
+    const dCuts = [];
+    {
+      const dv = []; for (let i = 0; i < n; i++) if (!reserved[i]) dv.push(depth[i]);
+      dv.sort((a, b) => a - b);
+      for (let k = 1; k < detSteps; k++) dCuts.push(dv[Math.floor((k / detSteps) * dv.length)] ?? 128);
+    }
+    for (let s = 0; s < detSteps; s++) {
+      progress(steps.length + 1); await tick();
+      const mask = new Uint8Array(n);
+      for (let i = 0; i < n; i++) {
+        if (reserved[i]) continue;
+        let g = 0; while (g < dCuts.length && depth[i] > dCuts[g]) g++;
+        if (g === s) mask[i] = 1;
+      }
+      const R = Math.max(1.5, M / 180);
+      paintStrokes(env, Tf, mask, R, 45, { alpha: water ? 0.9 : 1, jitter: 6, spill: R, maxSeg: 4 });
+      snapshot('details', Tf);
+    }
+
+    /* FINALE: luci, accenti, ritocchi */
+    {
+      progress(N); await tick();
+      const mask = new Uint8Array(n);
+      for (let i = 0; i < n; i++) if (!reserved[i]) mask[i] = 1;
+      const R = Math.max(1.2, M / 360);
+      paintStrokes(env, F, mask, R, 40, { alpha: 1, jitter: 3, clip: water, spill: 0, maxSeg: 3 });
+      paintStrokes(env, F, mask, Math.max(0.8, R * 0.6), 70, { alpha: 1, jitter: 0, clip: water, spill: 0, maxSeg: 2 });
+      snapshot('final', F);
+    }
+
     onProgress(1, 'wDone');
-    return { steps, w, h, complexity: cx };
+    return { steps, w, h, complexity: cx, ai };
   }
 
-  return { MAX_DIM, PLAN, buildSteps, stepSwatches, getPigments, findRecipe, hex, lab, dE, describeColor, analyzeComplexity };
+  return { MAX_DIM, PLAN, buildSteps, computeSwatches, getPigments, findRecipe, hex, lab, dE, describeColor, analyzeComplexity, key15 };
 })();
 
 if (typeof module !== 'undefined') module.exports = PaintCore;
@@ -701,7 +1068,69 @@ if (typeof document !== 'undefined') (() => {
   $('#cropBackBtn').addEventListener('click', () => show('size'));
   $('#cropNextBtn').addEventListener('click', () => analyze({ x: crop.ox, y: crop.oy, w: crop.fw / crop.s, h: crop.fh / crop.s }));
 
-  /* ---------- 4. analisi ---------- */
+  /* ---------- 4. profondità con IA (Depth Anything V2, scaricato da Hugging Face) ---------- */
+  const TJS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6';
+  const DEPTH_MODEL = 'onnx-community/depth-anything-v2-small';
+  let depthPipe = null;
+  async function loadDepthPipe(onFile) {
+    if (depthPipe) return depthPipe;
+    const tf = await import(TJS_URL);
+    tf.env.allowLocalModels = false;
+    depthPipe = await tf.pipeline('depth-estimation', DEPTH_MODEL, {
+      dtype: 'q8',
+      progress_callback: (e) => onFile(e),
+    });
+    return depthPipe;
+  }
+  function withWatchdog(fn, stallMs, totalMs) {
+    return new Promise((resolve, reject) => {
+      const start = Date.now();
+      let last = start, done = false;
+      const id = setInterval(() => {
+        if (Date.now() - last > stallMs || Date.now() - start > totalMs) { done = true; clearInterval(id); reject(new Error('timeout')); }
+      }, 1000);
+      fn(() => { last = Date.now(); }).then(
+        (v) => { if (!done) { done = true; clearInterval(id); resolve(v); } },
+        (e) => { if (!done) { done = true; clearInterval(id); reject(e); } },
+      );
+    });
+  }
+  async function aiDepth(canvas, w, h, prog) {
+    try {
+      const out = await withWatchdog(async (ping) => {
+        prog(0, 'wModel', { p: 0 });
+        const pipe = await loadDepthPipe((e) => {
+          ping();
+          if (e && e.status === 'progress' && /\.onnx$/.test(e.file || '')) {
+            const p = Math.round(e.progress || 0);
+            prog(0.8 * (p / 100), 'wModel', { p });
+          }
+        });
+        prog(0.85, 'wDepth'); ping();
+        const blob = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+        const url = URL.createObjectURL(blob);
+        try { return await pipe(url); } finally { URL.revokeObjectURL(url); }
+      }, 45000, 240000);
+      const res = Array.isArray(out) ? out[0] : out;
+      const d = res && res.depth;
+      if (!d || !d.data) return null;
+      const ch = d.channels || 1;
+      const outArr = new Uint8Array(w * h);
+      for (let y = 0; y < h; y++) {
+        const sy = Math.min(d.height - 1, Math.floor((y * d.height) / h));
+        for (let x = 0; x < w; x++) {
+          const sx = Math.min(d.width - 1, Math.floor((x * d.width) / w));
+          outArr[y * w + x] = d.data[(sy * d.width + sx) * ch];
+        }
+      }
+      return outArr;
+    } catch (err) {
+      console.warn('Paintstep: modello di profondità non disponibile, uso il metodo semplificato.', err);
+      return null;
+    }
+  }
+
+  /* ---------- 5. analisi ---------- */
   async function analyze(rect) {
     const ar = rect.w / rect.h;
     let W, H;
@@ -719,7 +1148,7 @@ if (typeof document !== 'undefined') (() => {
     state.recipes.clear();
     show('work');
     const bar = $('#workFill'), msg = $('#workMsg');
-    state.data = await PaintCore.buildSteps(state.src, state.medium, (p, key, vars) => {
+    state.data = await PaintCore.buildSteps(state.src, state.medium, (prog) => aiDepth(c, W, H, prog), (p, key, vars) => {
       state.workKey = key; state.workVars = vars;
       bar.style.width = (p * 100).toFixed(0) + '%';
       msg.textContent = t(key, vars);
@@ -748,7 +1177,7 @@ if (typeof document !== 'undefined') (() => {
     const src = step.img, d = out.data;
     for (let i = 0; i < w * h; i++) {
       const o = i * 4;
-      if (step.changed[i] && test(o)) { d[o] = src[o]; d[o + 1] = src[o + 1]; d[o + 2] = src[o + 2]; }
+      if (step.changed[i] && test(i)) { d[o] = src[o]; d[o + 1] = src[o + 1]; d[o + 2] = src[o + 2]; }
       else {
         const g = (src[o] * 0.3 + src[o + 1] * 0.59 + src[o + 2] * 0.11) * 0.22 + 60;
         d[o] = g * 0.85; d[o + 1] = g * 0.9; d[o + 2] = g * 1.1;
@@ -777,14 +1206,15 @@ if (typeof document !== 'undefined') (() => {
     drawRegion(cv, ctx, data, state.quad, state.quad == null ? 1 : 2);
   }
 
-  function swatchesFor(step) {
-    if (state.quad == null || step.sketch) return step.swatches;
+  function swatchInfo(step) {
+    if (state.quad == null || step.all) return { swatches: step.swatches, map: step.map };
     step.quadSw = step.quadSw || [];
     if (!step.quadSw[state.quad]) {
-      step.quadSw[state.quad] = PaintCore.stepSwatches(step.img, step.changed, state.data.w, state.data.h, region(state.quad));
+      step.quadSw[state.quad] = PaintCore.computeSwatches(step.target, step.changed, state.data.w, state.data.h, region(state.quad));
     }
     return step.quadSw[state.quad];
   }
+  const swatchesFor = (step) => swatchInfo(step).swatches;
 
   const DROP = {
     full: '<svg viewBox="0 0 16 16" aria-hidden="true"><path class="f" d="M8 1.5S3 7 3 10.2a5 5 0 0010 0C13 7 8 1.5 8 1.5z"/></svg>',
@@ -832,10 +1262,10 @@ if (typeof document !== 'undefined') (() => {
     [...$('#ribbon').children].forEach((el, j) => { el.className = j < state.i ? 'done' : j === state.i ? 'now' : ''; });
 
     /* testi della fase */
-    const group = state.medium === 'acquerello' ? 'wat' : 'paint';
     const ph = D().phase;
-    const title = (group === 'wat' ? ph.wat.title : ph.paint.title)[step.phase];
-    let desc = group === 'wat' ? ph.wat.desc[step.phase] : ph.paint.desc[step.phase];
+    const grp = state.medium === 'acquerello' ? ph.wat : ph.paint;
+    const title = grp.title[step.phase];
+    let desc = grp.desc[step.phase];
     if (state.medium === 'olio' && ph.oil.desc[step.phase]) desc = ph.oil.desc[step.phase];
     $('#stepNum').textContent = t('stepOf', { i: state.i + 1, n: N });
     $('#stepTitle').textContent = title;
@@ -886,6 +1316,7 @@ if (typeof document !== 'undefined') (() => {
     const badge = (k) => `<span class="badge">${DROP[WETNESS[k] || 'none']}${D().surf[k]}</span>`;
     $('#badges').innerHTML = badge(plan.s) + (plan.b ? badge(plan.b) : '');
 
+    $('#depthNote').textContent = t(state.data.ai ? 'depthAI' : 'depthSimple');
     $('#prevBtn').disabled = state.i === 0;
     $('#nextBtn').disabled = state.i === N - 1;
   }
@@ -970,8 +1401,8 @@ if (typeof document !== 'undefined') (() => {
     const q = t(rec.err < 3 ? 'm0' : rec.err < 6 ? 'm1' : rec.err < 12 ? 'm2' : 'm3');
     $('#cmpNote').textContent = t('matchLbl', { q });
 
-    const src = step.img;
-    const im = s.all ? dimmed(step, () => true) : dimmed(step, (o) => s.keys.has((src[o] << 16) | (src[o + 1] << 8) | src[o + 2]));
+    const info = swatchInfo(step), T = step.target;
+    const im = step.all || !info.map ? dimmed(step, () => true) : dimmed(step, (i) => info.map[PaintCore.key15(T, i * 4)] === k);
     drawRegion($('#whereCanvas'), $('#whereCanvas').getContext('2d'), im, state.quad, 1);
     $('#sheetTip').textContent = D().tips[state.medium];
 
