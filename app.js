@@ -454,9 +454,23 @@ const PaintCore = (() => {
   /* =========================================================
      IMMAGINI OBIETTIVO
      ========================================================= */
-  function quantTarget(px, w, h, radius, K, rnd, lighten, paper, accents = false) {
+  /* Sfocatura che usa solo i pixel della maschera (lo sfondo non si "sporca" col colore del soggetto) */
+  function maskedBlur(px, w, h, radius, mask) {
     const n = w * h;
-    const bl = blur(px, w, h, radius);
+    const m3 = new Float32Array(n * 3), m1 = new Float32Array(n);
+    for (let i = 0; i < n; i++) if (mask[i]) { m3[i * 3] = px[i * 3]; m3[i * 3 + 1] = px[i * 3 + 1]; m3[i * 3 + 2] = px[i * 3 + 2]; m1[i] = 1; }
+    const num = blur(m3, w, h, radius), den = boxBlur1(m1, w, h, Math.max(1, Math.round(radius / 1.7)));
+    const out = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const d = den[i];
+      if (d > 0.02) { out[i * 3] = num[i * 3] / d; out[i * 3 + 1] = num[i * 3 + 1] / d; out[i * 3 + 2] = num[i * 3 + 2] / d; }
+      else { out[i * 3] = px[i * 3]; out[i * 3 + 1] = px[i * 3 + 1]; out[i * 3 + 2] = px[i * 3 + 2]; }
+    }
+    return out;
+  }
+  function quantTarget(px, w, h, radius, K, rnd, lighten, paper, accents = false, preBlurred = null) {
+    const n = w * h;
+    const bl = preBlurred || blur(px, w, h, radius);
     let pal = kmeans(bl, n, K, rnd);
     if (accents) pal = pal.concat(accentColors(bl, n, pal, rnd));
     if (lighten != null) {
@@ -841,21 +855,43 @@ const PaintCore = (() => {
     const Tf = quantTarget(px, w, h, 0, cx.kmax + 4, rnd, null, paper, true);
     const F = rgbaFrom(px, n);
 
-    /* 4) sfondo: cielo/lontananze riconosciuti + zone più lontane (non soggetto) */
-    const bg = new Uint8Array(n), sky = new Uint8Array(n);
-    {
-      const dv = [];
-      for (let i = 0; i < n; i++) if (!reserved[i] && !(cat && cat[i] === CAT.subject)) dv.push(depth[i]);
-      dv.sort((a, b) => a - b);
-      const dThr = dv[Math.floor(dv.length * 0.35)] ?? 0;
-      for (let i = 0; i < n; i++) {
-        if (reserved[i]) continue;
-        const c = cat ? cat[i] : -1;
-        if (c === CAT.sky) { bg[i] = 1; sky[i] = 1; }
-        else if (c === CAT.dist) bg[i] = 1;
-        else if (c !== CAT.subject && depth[i] <= dThr) bg[i] = 1;
+    /* 4) sfondo = tutto ciò che non è soggetto (come ragiona un pittore) */
+    const fg = new Uint8Array(n);
+    let fgA = 0;
+    if (cat) for (let i = 0; i < n; i++) if (cat[i] === CAT.subject && !reserved[i]) { fg[i] = 1; fgA++; }
+    if (fgA < tot * 0.02) {
+      /* nessun soggetto riconosciuto: separo vicino/lontano con la soglia di Otsu sulla profondità */
+      fg.fill(0); fgA = 0;
+      const hist = new Float64Array(256); let cnt = 0;
+      for (let i = 0; i < n; i++) if (!reserved[i]) { hist[depth[i]]++; cnt++; }
+      let sum = 0; for (let v = 0; v < 256; v++) sum += v * hist[v];
+      let sB = 0, wB = 0, best = -1, thr = 128;
+      for (let v = 0; v < 256; v++) {
+        wB += hist[v]; if (!wB) continue;
+        const wF = cnt - wB; if (!wF) break;
+        sB += v * hist[v];
+        const mB = sB / wB, mF = (sum - sB) / wF, between = wB * wF * (mB - mF) ** 2;
+        if (between > best) { best = between; thr = v; }
       }
+      let nearA = 0; for (let i = 0; i < n; i++) if (!reserved[i] && depth[i] > thr) nearA++;
+      if (nearA > tot * 0.6 || nearA < tot * 0.05) {
+        const dv = []; for (let i = 0; i < n; i++) if (!reserved[i]) dv.push(depth[i]);
+        dv.sort((a, b) => a - b); thr = dv[Math.floor(dv.length * 0.65)] ?? 128;
+      }
+      for (let i = 0; i < n; i++) if (!reserved[i] && depth[i] > thr) { fg[i] = 1; fgA++; }
     }
+    const bg = new Uint8Array(n), sky = new Uint8Array(n), wat = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      if (reserved[i] || fg[i]) continue;
+      bg[i] = 1;
+      if (cat && cat[i] === CAT.sky) sky[i] = 1;
+      if (cat && cat[i] === CAT.water) wat[i] = 1;
+    }
+    let watA = 0; for (let i = 0; i < n; i++) watA += wat[i];
+    const notFg = new Uint8Array(n); for (let i = 0; i < n; i++) notFg[i] = !fg[i] && !reserved[i] ? 1 : 0;
+    const Tbg = quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.45)), rnd, water ? 75 : null, paper, false, maskedBlur(px, w, h, M / 40, notFg));
+    const waterSplit = watA > tot * 0.05;
+    if (waterSplit) for (let i = 0; i < n; i++) if (wat[i]) { bg[i] = 0; sky[i] = 0; }
     let bgA = 0, skyA = 0; for (let i = 0; i < n; i++) { bgA += bg[i]; skyA += sky[i]; }
     if (cat) {
       const cnt = [0, 0, 0, 0, 0]; for (let i = 0; i < n; i++) if (!reserved[i]) cnt[cat[i]]++;
@@ -899,6 +935,7 @@ const PaintCore = (() => {
         add('background', rest, { kind: 'bg' });
       } else add('background', bg, { kind: 'bg' });
     }
+    if (waterSplit) add('blockWater', wat, { kind: 'bg', horizontal: true });
     if (water) {
       const fgAll = new Uint8Array(n); for (let i = 0; i < n; i++) fgAll[i] = !reserved[i] && !bg[i] ? 1 : 0;
       add('wLight', fgAll, { kind: 'wLight' });
@@ -952,6 +989,15 @@ const PaintCore = (() => {
       prev = img;
     };
     const progress = (k) => onProgress(0.45 + 0.54 * (k / N), 'wStep', { s: k, n: N });
+    /* nessun buco: ogni pixel della zona riceve il suo colore */
+    const coverAll = (T, mask) => {
+      const d = ctx.getImageData(0, 0, w, h);
+      for (let i = 0; i < n; i++) if (mask[i]) {
+        const o = i * 4;
+        if (cdiff(T, o, d.data, o) > 45) { d.data[o] = T[o]; d.data[o + 1] = T[o + 1]; d.data[o + 2] = T[o + 2]; }
+      }
+      ctx.putImageData(d, 0, 0);
+    };
     const exactFill = (skip) => {
       const d = ctx.getImageData(0, 0, w, h);
       for (let i = 0; i < n; i++) if (!reserved[i] && !(skip && skip[i])) {
@@ -996,9 +1042,10 @@ const PaintCore = (() => {
       switch (st.kind) {
         case 'bg': {
           const R = M / 26;
-          paintStrokes(env, Tb, st.mask, R, 14, { alpha, jitter: 12, spill: R * 1.6, maxSeg: 6 });
-          paintStrokes(env, Tb, st.mask, R * 0.45, 28, { alpha, jitter: 8, spill: R * 0.6, maxSeg: 4 });
-          snapshot(st.phase, Tb); break;
+          paintStrokes(env, Tbg, st.mask, R, 14, { alpha, jitter: 12, spill: R * 1.6, maxSeg: 6 });
+          paintStrokes(env, Tbg, st.mask, R * 0.45, 28, { alpha, jitter: 8, spill: R * 0.6, maxSeg: st.horizontal ? 7 : 4 });
+          coverAll(Tbg, st.mask);
+          snapshot(st.phase, Tbg); break;
         }
         case 'wLight': {
           const R = M / 40;
