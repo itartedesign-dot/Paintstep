@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
   <header class="top">
@@ -132,9 +132,20 @@
     <section id="stepView" class="view" hidden>
       <div class="ribbon" id="ribbon" aria-hidden="true"></div>
 
-      <p class="quad-label" id="quadLabel" hidden></p>
+      <div class="zoom-head" id="zoomHead" hidden>
+        <div class="zoom-text">
+          <p class="zoom-title" id="zoomTitle"></p>
+          <p class="zoom-pos" id="zoomPos"></p>
+          <div class="view-toggle" role="group">
+            <button id="vtStep" aria-pressed="true"></button>
+            <button id="vtOrig" aria-pressed="false" data-i18n="tOrig"></button>
+          </div>
+          <p class="zoom-hint" data-i18n="zoomHint"></p>
+        </div>
+        <canvas id="miniMap" class="mini-map" role="button" tabindex="0" data-i18n-aria="miniAria"></canvas>
+      </div>
 
-      <div class="stage">
+      <div class="stage" id="stage">
         <div class="canvas-wrap">
           <div class="frame" id="frame">
             <canvas id="stepCanvas"></canvas>
@@ -159,18 +170,25 @@
         </aside>
       </div>
 
-      <nav class="steps-nav" data-i18n-aria="stepsNav">
+      <nav class="steps-nav" id="stepsNav" data-i18n-aria="stepsNav">
         <button class="nav-arrow" id="prevBtn">
           <span class="knob"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5l-7 7 7 7M4 12h16"/></svg></span>
           <span class="nav-label" data-i18n="prev"></span>
         </button>
-        <button class="nav-arrow back-whole" id="backWholeBtn" hidden>
-          <span class="knob"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11l7-7 7 7M12 4v16"/></svg></span>
-          <span class="nav-label" data-i18n="backWhole"></span>
-        </button>
         <button class="nav-arrow" id="nextBtn">
           <span class="knob"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5l7 7-7 7M20 12H4"/></svg></span>
           <span class="nav-label" data-i18n="next"></span>
+        </button>
+      </nav>
+
+      <nav class="zoom-nav" id="zoomNav" hidden>
+        <button class="nav-arrow" id="backZoomBtn">
+          <span class="knob"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11l7-7 7 7M12 4v16"/></svg></span>
+          <span class="nav-label" id="backZoomLbl"></span>
+        </button>
+        <button class="nav-arrow" id="backStepBtn">
+          <span class="knob"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></span>
+          <span class="nav-label" id="backStepLbl"></span>
         </button>
       </nav>
 
@@ -273,7 +291,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="i18n.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>

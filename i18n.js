@@ -1183,4 +1183,54 @@ Object.keys(I18N_ZONES).forEach((l) => {
   Object.assign(dst.phase.wat.desc, src.wd);
 });
 
+/* ---------- Testi degli zoom ---------- */
+const I18N_ZOOM = {
+  "it": {
+    "zoomTitle": "Step {s} · Zoom {z}",
+    "zoomHint": "Scorri col dito sullo zoom per passare alle parti vicine.",
+    "tStep": "Step {s}",
+    "tOrig": "Quadro originale",
+    "backZoom": "Torna allo zoom {z}",
+    "backStep": "Torna allo step {s}",
+    "miniAria": "Miniatura dell'opera: tocca una zona per spostarti"
+  },
+  "en": {
+    "zoomTitle": "Step {s} · Zoom {z}",
+    "zoomHint": "Swipe on the zoom to move to the neighboring parts.",
+    "tStep": "Step {s}",
+    "tOrig": "Original painting",
+    "backZoom": "Back to zoom {z}",
+    "backStep": "Back to step {s}",
+    "miniAria": "Artwork thumbnail: tap an area to move there"
+  },
+  "fr": {
+    "zoomTitle": "Étape {s} · Zoom {z}",
+    "zoomHint": "Faites glisser le doigt sur le zoom pour passer aux parties voisines.",
+    "tStep": "Étape {s}",
+    "tOrig": "Tableau original",
+    "backZoom": "Retour au zoom {z}",
+    "backStep": "Retour à l'étape {s}",
+    "miniAria": "Miniature de l'œuvre : touchez une zone pour vous y déplacer"
+  },
+  "es": {
+    "zoomTitle": "Paso {s} · Zoom {z}",
+    "zoomHint": "Desliza el dedo sobre el zoom para pasar a las partes vecinas.",
+    "tStep": "Paso {s}",
+    "tOrig": "Cuadro original",
+    "backZoom": "Volver al zoom {z}",
+    "backStep": "Volver al paso {s}",
+    "miniAria": "Miniatura de la obra: toca una zona para desplazarte"
+  },
+  "de": {
+    "zoomTitle": "Schritt {s} · Zoom {z}",
+    "zoomHint": "Wische über den Zoom, um zu den benachbarten Teilen zu wechseln.",
+    "tStep": "Schritt {s}",
+    "tOrig": "Originalbild",
+    "backZoom": "Zurück zu Zoom {z}",
+    "backStep": "Zurück zu Schritt {s}",
+    "miniAria": "Miniatur des Bildes: Tippe auf einen Bereich, um dorthin zu wechseln"
+  }
+};
+Object.keys(I18N_ZOOM).forEach((l) => Object.assign(I18N[l].ui, I18N_ZOOM[l]));
+
 if (typeof module !== 'undefined') module.exports = I18N;

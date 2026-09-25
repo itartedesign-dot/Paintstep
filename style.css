@@ -249,7 +249,6 @@ main { max-width: 860px; margin: 0 auto; padding: 8px 20px calc(120px + env(safe
 }
 .stage:has(.rail[hidden]) + .steps-nav { margin-right: 0; }
 #prevBtn { justify-self: start; grid-column: 1; }
-#backWholeBtn { grid-column: 2; }
 #nextBtn { justify-self: end; grid-column: 3; }
 .nav-arrow {
   background: none; border: 0; padding: 0; display: grid; justify-items: center; gap: 6px;
@@ -266,9 +265,44 @@ main { max-width: 860px; margin: 0 auto; padding: 8px 20px calc(120px + env(safe
 .nav-arrow:hover .knob { border-color: var(--cad); transform: scale(1.05); }
 .nav-arrow:active .knob { transform: scale(.96); }
 #nextBtn .knob { background: var(--cad); border-color: var(--cad); color: var(--bg); }
-.back-whole .knob { background: transparent; border-color: var(--cad); color: var(--cad); }
 .nav-arrow:disabled { opacity: .25; cursor: default; }
 .nav-arrow:disabled .knob { transform: none; }
+.zoom-nav { display: flex; justify-content: center; gap: 48px; margin: 18px 88px 4px 0; }
+.stage:has(.rail[hidden]) ~ .zoom-nav { margin-right: 0; }
+#backZoomBtn .knob { background: transparent; border-color: var(--cad); color: var(--cad); }
+#backStepBtn .knob { background: var(--cad); border-color: var(--cad); color: var(--bg); }
+
+/* ---------- intestazione zoom ---------- */
+.zoom-head {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+  margin: 0 0 14px; padding: 14px 16px; background: var(--surface); border-radius: 6px;
+}
+.zoom-text { min-width: 0; }
+.zoom-title { margin: 0; font-family: var(--serif); font-size: clamp(1.3rem, 3.6vw, 1.7rem); line-height: 1.15; }
+.zoom-pos { margin: 2px 0 10px; color: #FF8A1F; font-weight: 600; font-size: .85rem; }
+.zoom-hint { margin: 8px 0 0; color: var(--faint); font-size: .75rem; }
+.view-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+.view-toggle button {
+  border: 0; background: transparent; color: var(--muted); padding: 7px 14px; border-radius: 999px;
+  font-size: .82rem; font-weight: 600;
+}
+.view-toggle button[aria-pressed="true"] { background: #fff; color: var(--bg); }
+.mini-map {
+  flex: none; display: block; border-radius: 3px; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.25), 0 8px 20px -10px rgba(0,0,0,.8);
+}
+.frame.zoomed #stepCanvas { touch-action: none; }
+#stepCanvas.from-right { animation: fromRight .32s cubic-bezier(.2,.8,.2,1); }
+#stepCanvas.from-left { animation: fromLeft .32s cubic-bezier(.2,.8,.2,1); }
+#stepCanvas.from-bottom { animation: fromBottom .32s cubic-bezier(.2,.8,.2,1); }
+#stepCanvas.from-top { animation: fromTop .32s cubic-bezier(.2,.8,.2,1); }
+@keyframes fromRight { from { transform: translateX(40px); opacity: .2; } }
+@keyframes fromLeft { from { transform: translateX(-40px); opacity: .2; } }
+@keyframes fromBottom { from { transform: translateY(40px); opacity: .2; } }
+@keyframes fromTop { from { transform: translateY(-40px); opacity: .2; } }
+.frame.bump { animation: bump .3s ease; }
+@keyframes bump { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+
 .depth-note { text-align: center; color: var(--faint); font-size: .75rem; margin: 8px 0 0; }
 
 /* ---------- scheda colore ---------- */
@@ -393,7 +427,10 @@ main { max-width: 860px; margin: 0 auto; padding: 8px 20px calc(120px + env(safe
   .size-row .unit { grid-column: 1 / -1; }
   .stage { gap: 8px; }
   .rail { width: 60px; }
-  .steps-nav { margin-right: 68px; }
+  .steps-nav, .zoom-nav { margin-right: 68px; }
+  .zoom-nav { gap: 28px; }
+  .zoom-head { padding: 12px; gap: 10px; }
+  .view-toggle button { padding: 6px 10px; font-size: .76rem; }
   .rail-btn { font-size: .66rem; padding: 10px 2px; }
   .canvas-wrap { padding: 8px; }
   .brand-name { font-size: 1.3rem; }

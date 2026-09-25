@@ -6,7 +6,7 @@
    CORE (puro, senza DOM: testabile anche in Node)
    ========================================================= */
 const PaintCore = (() => {
-  const MAX_DIM = 720;
+  const MAX_DIM = 1080;
 
   /* ---------- colore ---------- */
   const LIN = new Float32Array(256);
@@ -316,7 +316,20 @@ const PaintCore = (() => {
     return 255;
   }
 
-  function analyzeComplexity(px, w, h) {
+  function downsample(px, w, h, maxDim) {
+    const s = Math.max(w, h) / maxDim;
+    if (s <= 1) return { px, w, h };
+    const W = Math.max(1, Math.round(w / s)), H = Math.max(1, Math.round(h / s));
+    const out = new Float32Array(W * H * 3);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const sx = Math.min(w - 1, Math.floor(x * s)), sy = Math.min(h - 1, Math.floor(y * s));
+      const i = (sy * w + sx) * 3, o = (y * W + x) * 3;
+      out[o] = px[i]; out[o + 1] = px[i + 1]; out[o + 2] = px[i + 2];
+    }
+    return { px: out, w: W, h: H };
+  }
+  function analyzeComplexity(px0, w0, h0) {
+    const { px, w, h } = downsample(px0, w0, h0, 720);
     const n = w * h;
     const mag = sobel(grayOf(blur(px, w, h, 1), n), w, h);
     let mean = 0; for (let i = 0; i < n; i++) mean += mag[i]; mean /= n;
@@ -441,10 +454,11 @@ const PaintCore = (() => {
   /* =========================================================
      IMMAGINI OBIETTIVO
      ========================================================= */
-  function quantTarget(px, w, h, radius, K, rnd, lighten, paper) {
+  function quantTarget(px, w, h, radius, K, rnd, lighten, paper, accents = false) {
     const n = w * h;
     const bl = blur(px, w, h, radius);
     let pal = kmeans(bl, n, K, rnd);
+    if (accents) pal = pal.concat(accentColors(bl, n, pal, rnd));
     if (lighten != null) {
       const Yp = lumY(...paper), Yf = Math.pow((lighten + 16) / 116, 3);
       pal = pal.map((c) => {
@@ -458,6 +472,21 @@ const PaintCore = (() => {
     const T = new Uint8ClampedArray(n * 4);
     for (let i = 0; i < n; i++) { const c = pal[idx[i]]; T[i * 4] = c[0]; T[i * 4 + 1] = c[1]; T[i * 4 + 2] = c[2]; T[i * 4 + 3] = 255; }
     return T;
+  }
+  /* Colori piccoli ma distinti (becchi, fiori, luci…) che la media per area cancellerebbe */
+  function accentColors(px, n, pal, rnd) {
+    const stride = Math.max(1, Math.floor(n / 80000));
+    const res = [];
+    for (let i = 0; i < n; i += stride) {
+      const r = px[i * 3], g = px[i * 3 + 1], b = px[i * 3 + 2];
+      let bd = Infinity;
+      for (const c of pal) { const d = (r - c[0]) ** 2 + (g - c[1]) ** 2 + (b - c[2]) ** 2; if (d < bd) bd = d; }
+      if (bd > 48 * 48) res.push(r, g, b);
+    }
+    const count = res.length / 3;
+    if (count * stride < n * 0.0006) return [];
+    const K = Math.min(6, Math.max(1, Math.round(count / 150)));
+    return kmeans(Float32Array.from(res), count, K, rnd);
   }
   function rgbaFrom(px, n) {
     const T = new Uint8ClampedArray(n * 4);
@@ -587,14 +616,22 @@ const PaintCore = (() => {
       const L = lab(rgb[0], rgb[1], rgb[2]);
       let best = -1, bd = Infinity;
       for (let g = 0; g < groups.length; g++) { const d = dE(groups[g].lab, L); if (d < bd) { bd = d; best = g; } }
-      if (best >= 0 && (bd < 9 || groups.length >= 60)) { groups[best].count += cnt[k]; binGroup[k] = best; }
+      if (best >= 0 && (bd < 9 || (groups.length >= 150 && bd < 20))) { groups[best].count += cnt[k]; binGroup[k] = best; }
       else { groups.push({ rgb, lab: L, count: cnt[k] }); binGroup[k] = groups.length - 1; }
     }
-    const keep = groups
-      .map((g, gi) => ({ ...g, gi }))
+    const all = groups.map((g, gi) => ({ ...g, gi, C: Math.hypot(g.lab[1], g.lab[2]) }));
+    const keep = all
       .filter((g) => g.count >= Math.max(total * 0.004, 12))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
+      .slice(0, 7);
+    /* accenti: colori saturi e diversi da quelli già scelti, anche se occupano poco spazio */
+    const accents = all
+      .filter((g) => !keep.includes(g) && g.C > 28 && g.count >= Math.max(15, total * 0.0003))
+      .sort((a, b) => b.C * Math.log(1 + b.count) - a.C * Math.log(1 + a.count));
+    for (const g of accents) {
+      if (keep.length >= 11) break;
+      if (keep.every((k) => dE(k.lab, g.lab) > 16)) keep.push(g);
+    }
     const gToS = new Int16Array(groups.length).fill(-1);
     keep.forEach((g, s) => { gToS[g.gi] = s; });
     const map = new Int16Array(32768).fill(-1);
@@ -787,9 +824,9 @@ const PaintCore = (() => {
 
     /* 5) immagini obiettivo */
     const Tb = quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.4)), rnd, water ? 72 : null, paper);
-    const Tm = quantTarget(px, w, h, M / 110, Math.round(cx.kmax * 0.75), rnd, water ? 40 : null, paper);
-    const Tf = quantTarget(px, w, h, 1, cx.kmax + 4, rnd, null, paper);
-    const F = rgbaFrom(blur(px, w, h, 1), n);
+    const Tm = quantTarget(px, w, h, M / 110, Math.round(cx.kmax * 0.75), rnd, water ? 40 : null, paper, true);
+    const Tf = quantTarget(px, w, h, 0, cx.kmax + 4, rnd, null, paper, true);
+    const F = rgbaFrom(px, n);
 
     /* 6) tela, livello pennellate, maschera */
     const mk = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
@@ -927,6 +964,13 @@ const PaintCore = (() => {
       const R = Math.max(1.2, M / 360);
       paintStrokes(env, F, mask, R, 40, { alpha: 1, jitter: 3, clip: water, spill: 0, maxSeg: 3 });
       paintStrokes(env, F, mask, Math.max(0.8, R * 0.6), 70, { alpha: 1, jitter: 0, clip: water, spill: 0, maxSeg: 2 });
+      /* il quadro finito dev'essere definito: completo pixel per pixel */
+      const done = ctx.getImageData(0, 0, w, h);
+      for (let i = 0; i < n; i++) if (!reserved[i]) {
+        const o = i * 4;
+        done.data[o] = F[o]; done.data[o + 1] = F[o + 1]; done.data[o + 2] = F[o + 2];
+      }
+      ctx.putImageData(done, 0, 0);
       snapshot('final', F);
     }
 
@@ -985,7 +1029,7 @@ if (typeof document !== 'undefined') (() => {
 
   const state = {
     img: null, medium: 'acrilico', palette: 'primari', dims: null, src: null, orig: null,
-    data: null, i: 0, zones: false, quad: null, split: false, splitColor: '#FFD600',
+    data: null, i: 0, zones: false, path: [], zoomOrig: false, slide: null, split: false, splitColor: '#FFD600',
     pigs: null, recipes: new Map(), lastSwatchBtn: null, showingOrig: false, sheetK: null, dropError: null,
     workKey: null, workVars: null,
   };
@@ -1283,6 +1327,7 @@ if (typeof document !== 'undefined') (() => {
     x.imageSmoothingQuality = 'high';
     x.drawImage(state.img, rect.x, rect.y, rect.w, rect.h, 0, 0, W, H);
     state.src = { w: W, h: H, rgba: x.getImageData(0, 0, W, H).data };
+    state.rect = rect;
     state.orig = new ImageData(new Uint8ClampedArray(state.src.rgba), W, H);
 
     state.pigs = PaintCore.getPigments(state.medium, state.palette);
@@ -1294,22 +1339,36 @@ if (typeof document !== 'undefined') (() => {
       bar.style.width = (p * 100).toFixed(0) + '%';
       msg.textContent = t(key, vars);
     }, (prog) => aiSeg(c, W, H, prog));
-    state.i = 0; state.zones = false; state.quad = null; state.split = false;
+    state.i = 0; state.zones = false; state.path = []; state.zoomOrig = false; state.split = false;
     $('#ribbon').innerHTML = state.data.steps.map(() => '<i></i>').join('');
     show('step');
     render(false);
   }
 
-  $('#newBtn').addEventListener('click', () => { state.data = null; state.quad = null; show('upload'); });
+  $('#newBtn').addEventListener('click', () => {
+    state.data = null; state.path = []; state.zoomOrig = false; state.split = false; state.zones = false;
+    state.img = null; state.src = null; state.orig = null; state.dims = null; state.dropError = null;
+    input.value = '';
+    $('#preview').hidden = true; $('#preview').removeAttribute('src');
+    $('#dropEmpty').hidden = false;
+    $('#dropHint').textContent = t('uploadHint');
+    $('#toSizeBtn').disabled = true;
+    wIn.value = ''; hIn.value = ''; wIn.placeholder = ''; hIn.placeholder = '';
+    show('upload');
+  });
 
   /* ---------- 5. step ---------- */
   const cv = $('#stepCanvas'), ctx = cv.getContext('2d');
   const off = document.createElement('canvas'), offctx = off.getContext('2d');
 
-  function region(q) {
-    const { w, h } = state.data;
-    const hw = Math.floor(w / 2), hh = Math.floor(h / 2);
-    return { x: q % 2 ? hw : 0, y: q > 1 ? hh : 0, w: q % 2 ? w - hw : hw, h: q > 1 ? h - hh : hh };
+  /* Zona mostrata: percorso di quadranti (0–2 livelli), es. [2] = in basso a sinistra, [2, 1] = sua parte in alto a destra */
+  function regionOf(path) {
+    let r = { x: 0, y: 0, w: state.data.w, h: state.data.h };
+    for (const q of path) {
+      const hw = Math.floor(r.w / 2), hh = Math.floor(r.h / 2);
+      r = { x: r.x + (q % 2 ? hw : 0), y: r.y + (q > 1 ? hh : 0), w: q % 2 ? r.w - hw : hw, h: q > 1 ? r.h - hh : hh };
+    }
+    return r;
   }
 
   function dimmed(step, test) {
@@ -1328,32 +1387,84 @@ if (typeof document !== 'undefined') (() => {
     return out;
   }
 
-  function drawRegion(target, tctx, data, q, scale) {
+  function drawRegion(target, tctx, data, r, scale) {
     const { w, h } = state.data;
     off.width = w; off.height = h;
     offctx.putImageData(data, 0, 0);
-    const r = q == null ? { x: 0, y: 0, w, h } : region(q);
     target.width = Math.round(r.w * scale); target.height = Math.round(r.h * scale);
     tctx.imageSmoothingEnabled = true; tctx.imageSmoothingQuality = 'high';
     tctx.drawImage(off, r.x, r.y, r.w, r.h, 0, 0, target.width, target.height);
   }
+  /* Originale dalla foto a piena risoluzione: più nitido negli zoom */
+  function drawOriginal(target, tctx, r, scale) {
+    const R = state.rect, k = R.w / state.data.w, kh = R.h / state.data.h;
+    target.width = Math.round(r.w * scale); target.height = Math.round(r.h * scale);
+    tctx.imageSmoothingEnabled = true; tctx.imageSmoothingQuality = 'high';
+    tctx.fillStyle = '#fff'; tctx.fillRect(0, 0, target.width, target.height);
+    tctx.drawImage(state.img, R.x + r.x * k, R.y + r.y * kh, r.w * k, r.h * kh, 0, 0, target.width, target.height);
+  }
 
   function paint() {
     const step = state.data.steps[state.i];
-    let data;
-    if (state.showingOrig) data = state.orig;
-    else if (state.zones) data = dimmed(step, () => true);
-    else data = new ImageData(new Uint8ClampedArray(step.img), state.data.w, state.data.h);
-    drawRegion(cv, ctx, data, state.quad, state.quad == null ? 1 : 2);
+    const r = regionOf(state.path);
+    const scale = Math.pow(2, state.path.length);
+    const zoomed = state.path.length > 0;
+    if (state.showingOrig || (zoomed && state.zoomOrig)) {
+      if (state.img && state.rect) drawOriginal(cv, ctx, r, scale);
+      else drawRegion(cv, ctx, state.orig, r, scale);
+    } else {
+      const data = state.zones ? dimmed(step, () => true) : new ImageData(new Uint8ClampedArray(step.img), state.data.w, state.data.h);
+      drawRegion(cv, ctx, data, r, scale);
+    }
+    if (zoomed) drawMini();
+  }
+
+  /* Miniatura dell'opera con la zona zoomata evidenziata in arancione */
+  function drawMini() {
+    const mc = $('#miniMap'), mctx = mc.getContext('2d');
+    const { w, h } = state.data;
+    const box = window.innerWidth < 520 ? 116 : 150;
+    let cw = box, ch = (box * h) / w;
+    if (ch > box) { ch = box; cw = (box * w) / h; }
+    const dpr = window.devicePixelRatio || 1;
+    mc.style.width = cw + 'px'; mc.style.height = ch + 'px';
+    mc.width = Math.round(cw * dpr); mc.height = Math.round(ch * dpr);
+    mctx.imageSmoothingEnabled = true; mctx.imageSmoothingQuality = 'high';
+    if (state.zoomOrig && state.img && state.rect) {
+      const R = state.rect;
+      mctx.drawImage(state.img, R.x, R.y, R.w, R.h, 0, 0, mc.width, mc.height);
+    } else {
+      off.width = w; off.height = h;
+      offctx.putImageData(new ImageData(new Uint8ClampedArray(state.data.steps[state.i].img), w, h), 0, 0);
+      mctx.drawImage(off, 0, 0, mc.width, mc.height);
+    }
+    const k = mc.width / w;
+    const r = regionOf(state.path);
+    const X = r.x * k, Y = r.y * k, W = r.w * k, H = r.h * k;
+    mctx.fillStyle = 'rgba(8, 14, 30, .55)';
+    mctx.fillRect(0, 0, mc.width, Y);
+    mctx.fillRect(0, Y + H, mc.width, mc.height - Y - H);
+    mctx.fillRect(0, Y, X, H);
+    mctx.fillRect(X + W, Y, mc.width - X - W, H);
+    if (state.path.length > 1) {
+      const p = regionOf(state.path.slice(0, 1));
+      mctx.setLineDash([4 * dpr, 3 * dpr]);
+      mctx.strokeStyle = 'rgba(255, 138, 31, .8)'; mctx.lineWidth = 1.2 * dpr;
+      mctx.strokeRect(p.x * k + 0.5, p.y * k + 0.5, p.w * k - 1, p.h * k - 1);
+      mctx.setLineDash([]);
+    }
+    mctx.strokeStyle = '#FF8A1F'; mctx.lineWidth = 2.5 * dpr;
+    mctx.strokeRect(X + 1.25 * dpr, Y + 1.25 * dpr, W - 2.5 * dpr, H - 2.5 * dpr);
   }
 
   function swatchInfo(step) {
-    if (state.quad == null || step.all) return { swatches: step.swatches, map: step.map };
-    step.quadSw = step.quadSw || [];
-    if (!step.quadSw[state.quad]) {
-      step.quadSw[state.quad] = PaintCore.computeSwatches(step.target, step.changed, state.data.w, state.data.h, region(state.quad));
+    const key = state.path.join('');
+    if (!key || step.all) return { swatches: step.swatches, map: step.map };
+    step.zoomSw = step.zoomSw || {};
+    if (!step.zoomSw[key]) {
+      step.zoomSw[key] = PaintCore.computeSwatches(step.target, step.changed, state.data.w, state.data.h, regionOf(state.path));
     }
-    return step.quadSw[state.quad];
+    return step.zoomSw[key];
   }
   const swatchesFor = (step) => swatchInfo(step).swatches;
 
@@ -1397,8 +1508,13 @@ if (typeof document !== 'undefined') (() => {
     const step = steps[state.i];
     const N = steps.length;
     const draw = () => { paint(); cv.classList.remove('fading'); };
-    if (animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) { cv.classList.add('fading'); setTimeout(draw, 140); }
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (state.slide && !reduced) {
+      cv.classList.remove('from-left', 'from-right', 'from-top', 'from-bottom');
+      draw(); void cv.offsetWidth; cv.classList.add(state.slide);
+    } else if (animate && !reduced) { cv.classList.add('fading'); setTimeout(draw, 140); }
     else draw();
+    state.slide = null;
 
     [...$('#ribbon').children].forEach((el, j) => { el.className = j < state.i ? 'done' : j === state.i ? 'now' : ''; });
 
@@ -1413,26 +1529,38 @@ if (typeof document !== 'undefined') (() => {
     $('#stepDesc').textContent = desc;
     $('#zonesBtn').setAttribute('aria-pressed', String(state.zones));
 
-    /* modalità parte (figlio) */
-    const inQuad = state.quad != null;
-    $('#quadLabel').hidden = !inQuad;
-    if (inQuad) $('#quadLabel').textContent = t('quadTitle', { q: t('q' + state.quad) });
-    $('#backWholeBtn').hidden = !inQuad;
-    $('#rail').hidden = inQuad;
-    $('#splitGrid').hidden = !state.split || inQuad;
-    $('#splitColors').hidden = !state.split;
+    /* zoom (fino a due livelli) */
+    const level = state.path.length, zoomed = level > 0;
+    $('#zoomHead').hidden = !zoomed;
+    if (zoomed) {
+      $('#zoomTitle').textContent = t('zoomTitle', { s: state.i + 1, z: state.path.map((q) => q + 1).join('.') });
+      $('#zoomPos').textContent = state.path.map((q) => t('q' + q)).join(' › ');
+      $('#vtStep').textContent = t('tStep', { s: state.i + 1 });
+      $('#vtStep').setAttribute('aria-pressed', String(!state.zoomOrig));
+      $('#vtOrig').setAttribute('aria-pressed', String(state.zoomOrig));
+    }
+    $('#frame').classList.toggle('zoomed', zoomed);
+    $('#rail').hidden = level >= 2;
+    $('#splitGrid').hidden = !state.split || level >= 2;
+    $('#splitColors').hidden = !state.split || level >= 2;
     $('#splitBtn').setAttribute('aria-pressed', String(state.split));
     $('#frame').style.setProperty('--split', state.splitColor);
     $$('#splitColors button').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.c === state.splitColor)));
     $$('#splitGrid button').forEach((b) => b.setAttribute('aria-label', t('openQuad', { q: t('q' + b.dataset.q) })));
+    $('#stepsNav').hidden = zoomed;
+    $('#zoomNav').hidden = !zoomed;
+    $('#backZoomBtn').hidden = level < 2;
+    if (level >= 2) $('#backZoomLbl').textContent = t('backZoom', { z: state.path[0] + 1 });
+    $('#backStepLbl').textContent = t('backStep', { s: state.i + 1 });
+    $('#origBtn').hidden = zoomed;
 
     /* misure */
     const si = $('#sizeInfo');
     if (state.dims) {
-      const d = state.dims;
+      const d = state.dims, f = Math.pow(2, level);
       si.hidden = false;
-      si.textContent = inQuad
-        ? t('quadSize', { w: fmt(d.w / 2), h: fmt(d.h / 2), u: d.u })
+      si.textContent = zoomed
+        ? t('quadSize', { w: fmt(d.w / f), h: fmt(d.h / f), u: d.u })
         : t('canvasSize', { w: fmt(d.w), h: fmt(d.h), u: d.u }) + (state.split ? ' · ' + t('quadSize', { w: fmt(d.w / 2), h: fmt(d.h / 2), u: d.u }) : '');
     } else si.hidden = true;
 
@@ -1476,12 +1604,45 @@ if (typeof document !== 'undefined') (() => {
   /* dividi opera */
   $('#splitBtn').addEventListener('click', () => { state.split = !state.split; render(false); });
   $$('#splitColors button').forEach((b) => b.addEventListener('click', () => { state.splitColor = b.dataset.c; render(false); }));
+  let suppressClickUntil = 0;
   $$('#splitGrid button').forEach((b) => b.addEventListener('click', () => {
-    state.quad = Number(b.dataset.q);
+    if (Date.now() < suppressClickUntil || state.path.length >= 2) return;
+    state.path = state.path.concat(Number(b.dataset.q));
+    state.split = false;
     render();
-    $('#frame').scrollIntoView({ block: 'nearest' });
+    $('#stage').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }));
-  $('#backWholeBtn').addEventListener('click', () => { state.quad = null; render(); });
+  $('#backZoomBtn').addEventListener('click', () => { state.path = state.path.slice(0, 1); state.split = false; render(); });
+  $('#backStepBtn').addEventListener('click', () => { state.path = []; state.split = false; state.zoomOrig = false; render(); });
+  $('#vtStep').addEventListener('click', () => { state.zoomOrig = false; render(false); });
+  $('#vtOrig').addEventListener('click', () => { state.zoomOrig = true; render(false); });
+
+  /* Spostamento tra gli zoom vicini (dx, dy = -1 / 0 / +1) */
+  function moveZoom(dx, dy) {
+    const L = state.path.length;
+    if (!L) return;
+    const q = state.path[L - 1];
+    const col = (q % 2) + dx, row = (q >> 1) + dy;
+    if (col < 0 || col > 1 || row < 0 || row > 1) {
+      const f = $('#frame');
+      f.classList.remove('bump'); void f.offsetWidth; f.classList.add('bump');
+      return;
+    }
+    state.path = state.path.slice(0, L - 1).concat(row * 2 + col);
+    state.slide = dx > 0 ? 'from-right' : dx < 0 ? 'from-left' : dy > 0 ? 'from-bottom' : 'from-top';
+    render();
+  }
+  $('#miniMap').addEventListener('click', (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    let x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    const path = [];
+    for (let k = 0; k < state.path.length; k++) {
+      const col = x >= 0.5 ? 1 : 0, row = y >= 0.5 ? 1 : 0;
+      path.push(row * 2 + col);
+      x = (x - col * 0.5) * 2; y = (y - row * 0.5) * 2;
+    }
+    if (path.join() !== state.path.join()) { state.path = path; render(); }
+  });
 
   const ob = $('#origBtn');
   const setOrig = (v) => { if (!state.data) return; state.showingOrig = v; paint(); };
@@ -1495,30 +1656,44 @@ if (typeof document !== 'undefined') (() => {
     cv.toBlob((blob) => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `paintstep-step-${String(state.i + 1).padStart(2, '0')}${state.quad != null ? '-part' + (state.quad + 1) : ''}.png`;
+      a.download = `paintstep-step-${String(state.i + 1).padStart(2, '0')}${state.path.length ? '-zoom' + state.path.map((q) => q + 1).join('.') : ''}${state.zoomOrig && state.path.length ? '-originale' : ''}.png`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     }, 'image/png');
   });
 
-  let tx = null, ty = null;
+  let sx = null, sy = null, sid = null;
   const frame = $('#frame');
-  frame.addEventListener('touchstart', (e) => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
-  frame.addEventListener('touchend', (e) => {
-    if (tx === null) return;
-    const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
-    tx = ty = null;
+  frame.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && !state.path.length) return;
+    sx = e.clientX; sy = e.clientY; sid = e.pointerId;
   });
+  window.addEventListener('pointerup', (e) => {
+    if (sx === null || e.pointerId !== sid) return;
+    const dx = e.clientX - sx, dy = e.clientY - sy;
+    sx = sy = null;
+    const ax = Math.abs(dx), ay = Math.abs(dy);
+    if (state.path.length) {
+      if (Math.max(ax, ay) < 40) return;
+      suppressClickUntil = Date.now() + 350;
+      if (ax > ay) moveZoom(dx < 0 ? 1 : -1, 0); else moveZoom(0, dy < 0 ? 1 : -1);
+    } else if (ax > 50 && ax > ay * 1.5) go(dx < 0 ? 1 : -1);
+  });
+  window.addEventListener('pointercancel', () => { sx = sy = null; });
 
   document.addEventListener('keydown', (e) => {
     if (!$('#contactBackdrop').hidden) { if (e.key === 'Escape') closeContact(); return; }
     if (!$('#sheetBackdrop').hidden) { if (e.key === 'Escape') closeSheet(); return; }
     if (views.step.hidden) return;
     if (e.target.matches('input, select, textarea')) return;
+    if (state.path.length) {
+      const mv = { ArrowRight: [1, 0], ArrowLeft: [-1, 0], ArrowDown: [0, 1], ArrowUp: [0, -1] }[e.key];
+      if (mv) { e.preventDefault(); moveZoom(...mv); }
+      if (e.key === 'Escape') { state.path = state.path.slice(0, -1); state.split = false; render(); }
+      return;
+    }
     if (e.key === 'ArrowRight') go(1);
     if (e.key === 'ArrowLeft') go(-1);
-    if (e.key === 'Escape' && state.quad != null) { state.quad = null; render(); }
   });
 
   /* ---------- scheda colore ---------- */
@@ -1545,7 +1720,7 @@ if (typeof document !== 'undefined') (() => {
 
     const info = swatchInfo(step), T = step.target;
     const im = step.all || !info.map ? dimmed(step, () => true) : dimmed(step, (i) => info.map[PaintCore.key15(T, i * 4)] === k);
-    drawRegion($('#whereCanvas'), $('#whereCanvas').getContext('2d'), im, state.quad, 1);
+    drawRegion($('#whereCanvas'), $('#whereCanvas').getContext('2d'), im, regionOf(state.path), 1);
     $('#sheetTip').textContent = D().tips[state.medium];
 
     if (refresh) return;

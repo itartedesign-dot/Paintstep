@@ -19,7 +19,7 @@ L'app è statica: HTML, CSS e JavaScript, senza librerie e senza server. L'immag
    - luci finali e ritocchi.
 6. **Scheda colore** – per ogni tinta calcola la miscela con un modello di mescolanza sottrattiva (Kubelka–Munk) e mostra dove stenderla in quello step.
 
-Ogni step mostra i pennelli consigliati e se lavorare bagnato o asciutto. Le frecce **Precedente / Successivo** sono subito sotto il quadro. Il tasto **Dividi opera** mostra una croce colorata che divide l'opera in quattro parti: toccando una parte si apre lo stesso step ingrandito, e la freccia centrale riporta all'opera intera.
+Ogni step mostra i pennelli consigliati e se lavorare bagnato o asciutto. Le frecce **Precedente / Successivo** sono subito sotto il quadro. Il tasto **Dividi opera** divide il quadro in quattro parti: toccandone una si apre lo zoom di quella porzione (fino a due livelli, per esempio "Step 5 · Zoom 2.4"). In alto una miniatura dell'opera evidenzia in arancione la parte mostrata e si può toccare per spostarsi; scorrendo col dito sullo zoom si passa alle parti vicine. Un selettore mostra lo zoom dello step oppure la stessa porzione del quadro originale, per confrontarli. Sotto, le frecce riportano allo zoom di primo livello o direttamente allo step di partenza.
 
 L'immagine del dipinto non lascia mai il dispositivo: dall'esterno si scaricano solo la libreria e il modello.
 
