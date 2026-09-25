@@ -1024,9 +1024,37 @@ const PaintCore = (() => {
       if (cat && cat[i] === CAT.water) wat[i] = 1;
     }
     let watA = 0; for (let i = 0; i < n; i++) watA += wat[i];
+    /* Acrilico: lo sfondo passa anche DIETRO il soggetto. Olio: entra bene sotto i bordi. Acquerello: soggetto riservato. */
+    const behind = new Uint8Array(n);
+    if (!water && fgA > 0) {
+      if (medium === 'acrilico') { for (let i = 0; i < n; i++) if (fg[i]) behind[i] = 1; }
+      else {
+        const nb = new Uint8Array(n); for (let i = 0; i < n; i++) nb[i] = !fg[i] && !reserved[i] ? 1 : 0;
+        const band = dilate(nb, w, h, Math.round(M / 90));
+        for (let i = 0; i < n; i++) if (fg[i] && band[i]) behind[i] = 1;
+      }
+      for (let i = 0; i < n; i++) if (behind[i]) bg[i] = 1;
+    }
     const notFg = new Uint8Array(n); for (let i = 0; i < n; i++) notFg[i] = !fg[i] && !reserved[i] ? 1 : 0;
     const Tbg = dominantTarget(px, w, h, notFg, Math.max(7, Math.round(cx.kmax * 0.45)), M / 40, rnd, water ? 75 : null, paper)
       || quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.45)), rnd, water ? 75 : null, paper, false, maskedBlur(px, w, h, M / 40, notFg));
+    if (!water && fgA > 0) {
+      /* sotto il soggetto: continuazione morbida dei colori dello sfondo, dalla scala più fine a quella più ampia */
+      const src3 = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { src3[i * 3] = Tbg[i * 4]; src3[i * 3 + 1] = Tbg[i * 4 + 1]; src3[i * 3 + 2] = Tbg[i * 4 + 2]; }
+      const done = new Uint8Array(n);
+      for (const rad of [M / 30, M / 12, M / 5, M / 2]) {
+        const r1 = Math.max(1, Math.round(rad / 1.7));
+        const m3 = new Float32Array(n * 3), m1 = new Float32Array(n);
+        for (let i = 0; i < n; i++) if (notFg[i]) { m3[i * 3] = src3[i * 3]; m3[i * 3 + 1] = src3[i * 3 + 1]; m3[i * 3 + 2] = src3[i * 3 + 2]; m1[i] = 1; }
+        const num = blur(m3, w, h, rad), den = boxBlur1(m1, w, h, r1);
+        for (let i = 0; i < n; i++) {
+          if (!fg[i] || done[i] || den[i] < 0.04) continue;
+          Tbg[i * 4] = num[i * 3] / den[i]; Tbg[i * 4 + 1] = num[i * 3 + 1] / den[i]; Tbg[i * 4 + 2] = num[i * 3 + 2] / den[i];
+          done[i] = 1;
+        }
+      }
+    }
     const waterSplit = watA > tot * 0.05;
     if (waterSplit) for (let i = 0; i < n; i++) if (wat[i]) { bg[i] = 0; sky[i] = 0; }
     let bgA = 0, skyA = 0; for (let i = 0; i < n; i++) { bgA += bg[i]; skyA += sky[i]; }
@@ -1213,6 +1241,19 @@ const PaintCore = (() => {
       switch (st.kind) {
         case 'bg': {
           paintFlat(Tbg, st.mask, alpha, 3);
+          if (fgA > 0 && !st.horizontal) {
+            /* il disegno dei soggetti coperto dallo sfondo si ritraccia con un colore chiaro (gessetto / colore diluito) */
+            const ld2 = lcx.getImageData(0, 0, w, h);
+            const near = dilate(behind, w, h, 3);
+            for (let i = 0; i < n; i++) {
+              const o = i * 4;
+              if (!near[i]) { ld2.data[o + 3] = 0; continue; }
+              ld2.data[o] = 232; ld2.data[o + 1] = 222; ld2.data[o + 2] = 200;
+              ld2.data[o + 3] = Math.min(255, ld2.data[o + 3] * 1.1);
+            }
+            const tmp = mk(); tmp.getContext('2d').putImageData(ld2, 0, 0);
+            ctx.drawImage(tmp, 0, 0);
+          }
           snapshot(st.phase, Tbg); break;
         }
         case 'wLight': {

@@ -1692,4 +1692,32 @@ Object.keys(I18N_SELECT).forEach((l) => {
   Object.assign(dst.phase.wat.desc, src.wd);
 });
 
+/* ---------- Sfondo dietro i soggetti (acrilico) / sotto i bordi (olio) ---------- */
+const I18N_BEHIND = {
+  "it": [
+    "Stendi tutto lo sfondo con i suoi colori semplificati, a pennellate larghe, anche dietro i soggetti: l'acrilico è coprente e li dipingerai sopra. Poi ripassa leggermente il disegno dei soggetti.",
+    "Stendi tutto lo sfondo con colore magro, diluito con solvente, facendolo entrare bene sotto i bordi dei soggetti: così dipingerai i contorni fresco su fresco, senza vuoti. Lascia libero l'interno dei soggetti, perché i chiari restino puliti."
+  ],
+  "en": [
+    "Lay the whole background with simplified colors and broad strokes, behind the subjects too: acrylic is opaque and you'll paint them on top. Then lightly redraw the subjects' outlines.",
+    "Lay the whole background with lean paint thinned with solvent, working it well under the edges of the subjects, so you can paint the outlines wet-into-wet with no gaps. Leave the inside of the subjects free so the lights stay clean."
+  ],
+  "fr": [
+    "Posez tout le fond avec des couleurs simplifiées, à larges touches, y compris derrière les sujets : l'acrylique est couvrante et vous les peindrez par-dessus. Retracez ensuite légèrement le dessin des sujets.",
+    "Posez tout le fond avec une peinture maigre diluée au solvant, en la faisant bien passer sous les bords des sujets : vous peindrez ainsi les contours frais dans le frais, sans vides. Laissez l'intérieur des sujets libre pour garder des clairs propres."
+  ],
+  "es": [
+    "Extiende todo el fondo con colores simplificados y pinceladas amplias, también detrás de los sujetos: el acrílico es cubriente y los pintarás encima. Después vuelve a trazar ligeramente el dibujo de los sujetos.",
+    "Extiende todo el fondo con pintura magra diluida con disolvente, haciéndola entrar bien bajo los bordes de los sujetos: así pintarás los contornos fresco sobre fresco, sin huecos. Deja libre el interior de los sujetos para que los claros queden limpios."
+  ],
+  "de": [
+    "Lege den ganzen Hintergrund mit vereinfachten Farben und breiten Strichen an, auch hinter den Motiven: Acryl deckt, und du malst sie später darüber. Zeichne danach die Umrisse der Motive leicht nach.",
+    "Lege den ganzen Hintergrund mit magerer, mit Lösungsmittel verdünnter Farbe an und führe sie gut unter die Kanten der Motive: So malst du die Umrisse nass in nass, ohne Lücken. Lass das Innere der Motive frei, damit die hellen Töne sauber bleiben."
+  ]
+};
+Object.keys(I18N_BEHIND).forEach((l) => {
+  I18N[l].phase.paint.desc.background = I18N_BEHIND[l][0];
+  I18N[l].phase.oil.desc.background = I18N_BEHIND[l][1];
+});
+
 if (typeof module !== 'undefined') module.exports = I18N;
