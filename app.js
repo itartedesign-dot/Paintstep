@@ -403,10 +403,27 @@ const PaintCore = (() => {
     }
     const satB = boxBlur1(sat, w, h, Math.round(Math.max(w, h) / 40));
     let dMax = 0; for (let i = 0; i < n; i++) if (det[i] > dMax) dMax = det[i];
+    /* salienza: distanza dai colori dei bordi (lo sfondo di solito tocca i bordi, il soggetto no) */
+    const bw = Math.max(2, Math.round(Math.min(w, h) * 0.03));
+    const border = [];
+    for (let y = 0; y < h; y += 2) for (let x = 0; x < w; x += 2) {
+      if (x < bw || y < bw || x >= w - bw || y >= h - bw) { const i = y * w + x; border.push(px[i * 3], px[i * 3 + 1], px[i * 3 + 2]); }
+    }
+    const bpal = kmeans(Float32Array.from(border), border.length / 3, 6, mulberry32(99));
+    const sal = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      let bd = Infinity;
+      for (const c of bpal) { const d = (px[i * 3] - c[0]) ** 2 + (px[i * 3 + 1] - c[1]) ** 2 + (px[i * 3 + 2] - c[2]) ** 2; if (d < bd) bd = d; }
+      sal[i] = Math.sqrt(bd);
+    }
+    const salB = boxBlur1(sal, w, h, Math.round(Math.max(w, h) / 50));
+    const sv = Array.from(salB).sort((a, b) => a - b);
+    const sHi = sv[Math.floor(sv.length * 0.95)] || 1;
     const raw = new Float32Array(n);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const i = y * w + x;
-      raw[i] = 0.5 * (y / (h - 1 || 1)) + 0.32 * (det[i] / (dMax || 1)) + 0.18 * satB[i];
+      const center = 1 - Math.min(1, Math.hypot((x / w - 0.5) * 1.4, (y / h - 0.5) * 1.2));
+      raw[i] = 0.25 * (y / (h - 1 || 1)) + 0.3 * Math.min(1, salB[i] / sHi) + 0.2 * (det[i] / (dMax || 1)) + 0.15 * center + 0.1 * satB[i];
     }
     return normalize8(boxBlur1(raw, w, h, Math.round(Math.max(w, h) / 60)));
   }
@@ -468,6 +485,96 @@ const PaintCore = (() => {
     }
     return out;
   }
+  /* Colore DOMINANTE di ogni zona (come la base che stende il pittore), non la media:
+     blu con riflessi arancioni resta blu, non diventa marrone */
+  function dominantTarget(px, w, h, mask, K, radius, rnd, lighten, paper) {
+    const n = w * h;
+    const soft = blur(px, w, h, 2);
+    const sub = [];
+    const stride = Math.max(1, Math.floor(n / 60000));
+    for (let i = 0; i < n; i += stride) if (mask[i]) sub.push(soft[i * 3], soft[i * 3 + 1], soft[i * 3 + 2]);
+    if (sub.length < 30) return null;
+    let pal = kmeans(Float32Array.from(sub), sub.length / 3, K, rnd);
+    const idx = quantize(soft, n, pal);
+    const best = new Float32Array(n).fill(-1), win = new Uint8Array(n);
+    const r = Math.max(1, Math.round(radius / 1.7));
+    for (let k = 0; k < pal.length; k++) {
+      const ind = new Float32Array(n);
+      let any = false;
+      for (let i = 0; i < n; i++) if (mask[i] && idx[i] === k) { ind[i] = 1; any = true; }
+      if (!any) continue;
+      const b = boxBlur1(ind, w, h, r);
+      for (let i = 0; i < n; i++) if (b[i] > best[i]) { best[i] = b[i]; win[i] = k; }
+    }
+    if (lighten != null) {
+      const Yp = lumY(...paper), Yf = Math.pow((lighten + 16) / 116, 3);
+      pal = pal.map((c) => {
+        const Y = lumY(...c);
+        if (Y >= Yf) return c;
+        const f = (Yp - Yf) / (Yp - Y);
+        return c.map((v, j) => toSrgb(LIN[paper[j]] + (LIN[v] - LIN[paper[j]]) * f));
+      });
+    }
+    const T = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) {
+      const c = pal[best[i] > 0 ? win[i] : idx[i]];
+      T[i * 4] = c[0]; T[i * 4 + 1] = c[1]; T[i * 4 + 2] = c[2]; T[i * 4 + 3] = 255;
+    }
+    return T;
+  }
+
+  /* Completa il soggetto riconosciuto dall'IA: aggiunge le zone vicine con gli stessi colori
+     e la stessa profondità (piume sfrangiate, parti in ombra che il modello non ha preso) */
+  function growSubject(fg, T, depth, w, h, reserved, maxDist, cat = null, strongDepth = false) {
+    const n = w * h;
+    const inS = new Uint32Array(32768), all = new Uint32Array(32768);
+    let fgA = 0;
+    const dS = [];
+    for (let i = 0; i < n; i++) {
+      const k = key15(T, i * 4);
+      all[k]++;
+      if (fg[i]) { inS[k]++; fgA++; dS.push(depth[i]); }
+    }
+    if (!fgA) return fg;
+    dS.sort((a, b) => a - b);
+    const dThr = (dS[Math.floor(dS.length * 0.25)] ?? 0) - 8;
+    /* con il modello di profondità (IA): ciò che è attaccato al soggetto e alla sua stessa distanza è soggetto */
+    const dNear = dS[Math.floor(dS.length * 0.4)] ?? 255;
+    /* colori tipici del soggetto: quelli che coprono l'85% del soggetto riconosciuto */
+    const keys = []; for (let k = 0; k < 32768; k++) if (inS[k]) keys.push(k);
+    keys.sort((a, b) => inS[b] - inS[a]);
+    const labOf = (k) => lab(((k >> 10) & 31) * 8 + 4, ((k >> 5) & 31) * 8 + 4, (k & 31) * 8 + 4);
+    const pal = [];
+    let acc = 0;
+    for (const k of keys) { pal.push(labOf(k)); acc += inS[k]; if (acc >= fgA * 0.8 || pal.length >= 50) break; }
+    const ok = new Uint8Array(32768);
+    for (let k = 0; k < 32768; k++) {
+      if (!all[k]) continue;
+      if (inS[k] >= Math.max(10, fgA * 0.0005) && inS[k] / all[k] >= 0.25) { ok[k] = 1; continue; }
+      const L = labOf(k);
+      for (const P of pal) if (dE(L, P) < 10) { ok[k] = 1; break; }
+    }
+    const out = fg.slice();
+    let front = [];
+    for (let i = 0; i < n; i++) if (fg[i]) front.push(i);
+    for (let d = 0; d < maxDist && front.length; d++) {
+      const next = [];
+      for (const i of front) {
+        const x = i % w;
+        const nb = [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w];
+        for (const j of nb) {
+          if (j < 0 || j >= n || out[j] || reserved[j]) continue;
+          const colorOk = ok[key15(T, j * 4)] && depth[j] >= dThr;
+          const depthOk = strongDepth && depth[j] >= dNear && !(cat && cat[j] === 3);
+          if (!colorOk && !depthOk) continue;
+          out[j] = 1; next.push(j);
+        }
+      }
+      front = next;
+    }
+    return out;
+  }
+
   function quantTarget(px, w, h, radius, K, rnd, lighten, paper, accents = false, preBlurred = null) {
     const n = w * h;
     const bl = preBlurred || blur(px, w, h, radius);
@@ -744,7 +851,9 @@ const PaintCore = (() => {
     [CAT.dist, ['mountain', 'hill']],
     [CAT.water, ['water', 'sea', 'river', 'lake', 'waterfall', 'swimming pool', 'fountain']],
     [CAT.subject, ['person', 'animal', 'boat', 'ship', 'car', 'bicycle', 'bus', 'truck', 'van', 'airplane', 'minibike',
-      'sculpture', 'vase', 'bottle', 'food', 'plate', 'basket', 'pot', 'glass', 'book', 'bird', 'horse', 'dog', 'cat']],
+      'sculpture', 'vase', 'bottle', 'food', 'plate', 'basket', 'pot', 'glass', 'book', 'bird', 'horse', 'dog', 'cat',
+      'flower', 'armchair', 'chair', 'sofa', 'table', 'bed', 'lamp', 'cushion', 'painting', 'windowpane', 'door',
+      'bench', 'swivel chair', 'coffee table', 'desk', 'stool', 'bag', 'ball', 'plaything', 'fan', 'clock', 'bicycle', 'tent']],
   ];
   function categoryOf(label) {
     const l = String(label || '').toLowerCase().trim();
@@ -850,8 +959,8 @@ const PaintCore = (() => {
 
     /* 3) immagini obiettivo */
     const Tb = quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.4)), rnd, water ? 75 : null, paper);
-    const Tm = quantTarget(px, w, h, M / 110, Math.round(cx.kmax * 0.75), rnd, null, paper, true);
-    const TmW = water ? quantTarget(px, w, h, M / 110, Math.round(cx.kmax * 0.75), rnd, 45, paper, true) : Tm;
+    const Tm = quantTarget(px, w, h, M / 150, Math.round(cx.kmax * 0.8), rnd, null, paper, true);
+    const TmW = water ? quantTarget(px, w, h, M / 150, Math.round(cx.kmax * 0.75), rnd, 45, paper, true) : Tm;
     const Tf = quantTarget(px, w, h, 0, cx.kmax + 4, rnd, null, paper, true);
     const F = rgbaFrom(px, n);
 
@@ -859,6 +968,11 @@ const PaintCore = (() => {
     const fg = new Uint8Array(n);
     let fgA = 0;
     if (cat) for (let i = 0; i < n; i++) if (cat[i] === CAT.subject && !reserved[i]) { fg[i] = 1; fgA++; }
+    if (fgA >= tot * 0.02) {
+      const grown = growSubject(fg, Tm, depth, w, h, reserved, Math.round(M / 6), cat, ai);
+      fgA = 0; for (let i = 0; i < n; i++) { fg[i] = grown[i]; fgA += grown[i]; }
+      if (cat) for (let i = 0; i < n; i++) if (fg[i] && cat[i] !== CAT.subject) cat[i] = CAT.subject;
+    }
     if (fgA < tot * 0.02) {
       /* nessun soggetto riconosciuto: separo vicino/lontano con la soglia di Otsu sulla profondità */
       fg.fill(0); fgA = 0;
@@ -889,7 +1003,8 @@ const PaintCore = (() => {
     }
     let watA = 0; for (let i = 0; i < n; i++) watA += wat[i];
     const notFg = new Uint8Array(n); for (let i = 0; i < n; i++) notFg[i] = !fg[i] && !reserved[i] ? 1 : 0;
-    const Tbg = quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.45)), rnd, water ? 75 : null, paper, false, maskedBlur(px, w, h, M / 40, notFg));
+    const Tbg = dominantTarget(px, w, h, notFg, Math.max(7, Math.round(cx.kmax * 0.45)), M / 40, rnd, water ? 75 : null, paper)
+      || quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.45)), rnd, water ? 75 : null, paper, false, maskedBlur(px, w, h, M / 40, notFg));
     const waterSplit = watA > tot * 0.05;
     if (waterSplit) for (let i = 0; i < n; i++) if (wat[i]) { bg[i] = 0; sky[i] = 0; }
     let bgA = 0, skyA = 0; for (let i = 0; i < n; i++) { bgA += bg[i]; skyA += sky[i]; }
@@ -944,13 +1059,14 @@ const PaintCore = (() => {
       if (darks.bigA > minA) add('darksBig', darks.big, { kind: 'darkBig' });
       if (darks.smallA > minA && N0 >= 8) add('darksSmall', darks.small, { kind: 'darkSmall' });
       else if (darks.smallA > 0 && darks.bigA <= minA) add('darksBig', dark, { kind: 'darkBig' });
+      add('details', null, { kind: 'details' });
       add('refine', null, { kind: 'refine' });
       add('final', null, { kind: 'finalWater' });
     } else {
       if (darks.bigA > minA) add('darksBig', darks.big, { kind: 'darkBig' });
       if (darks.smallA > minA && N0 >= 8) add('darksSmall', darks.small, { kind: 'darkSmall' });
       else if (darks.bigA <= minA && darks.smallA > 0) add('darksBig', dark, { kind: 'darkBig' });
-      const afterColors = 1 + (N0 >= 14 && lights.smallA > minA ? 1 : 0) + 1 + (whiteA > n * 0.0008 ? 1 : 0);
+      const afterColors = 1 + (N0 >= 14 && lights.smallA > minA ? 1 : 0) + 2 + (whiteA > n * 0.0008 ? 1 : 0);
       const slots = clamp(N0 - 1 - (hasGround ? 1 : 0) - plan.length - afterColors, 1, 3);
       if (slots === 1 || mids.smallA < minA) add('colors', mid, { kind: 'colors' });
       else if (slots === 2) { add('colorsBig', mids.big, { kind: 'colors' }); add('colorsSmall', mids.small, { kind: 'colorsSmall' }); }
@@ -964,6 +1080,7 @@ const PaintCore = (() => {
       }
       if (N0 >= 14 && lights.smallA > minA) { add('lights', lights.big, { kind: 'lights' }); add('lightsSmall', lights.small, { kind: 'lightsSmall' }); }
       else add('lights', light, { kind: 'lights' });
+      add('details', null, { kind: 'details' });
       add('refine', null, { kind: 'refine' });
       if (whiteA > n * 0.0008) add('whites', white, { kind: 'whites' });
     }
@@ -1042,8 +1159,8 @@ const PaintCore = (() => {
       switch (st.kind) {
         case 'bg': {
           const R = M / 26;
-          paintStrokes(env, Tbg, st.mask, R, 14, { alpha, jitter: 12, spill: R * 1.6, maxSeg: 6 });
-          paintStrokes(env, Tbg, st.mask, R * 0.45, 28, { alpha, jitter: 8, spill: R * 0.6, maxSeg: st.horizontal ? 7 : 4 });
+          paintStrokes(env, Tbg, st.mask, R, 14, { alpha, jitter: 12, spill: R * 0.5, maxSeg: 6 });
+          paintStrokes(env, Tbg, st.mask, R * 0.45, 28, { alpha, jitter: 8, spill: R * 0.3, maxSeg: st.horizontal ? 7 : 4 });
           coverAll(Tbg, st.mask);
           snapshot(st.phase, Tbg); break;
         }
@@ -1055,14 +1172,14 @@ const PaintCore = (() => {
         }
         case 'darkBig': case 'darkSmall': {
           const T = Tm;
-          const R = st.kind === 'darkBig' ? M / 50 : M / 140;
+          const R = st.kind === 'darkBig' ? M / 60 : M / 150;
           paintStrokes(env, T, st.mask, R, 22, { alpha: water ? 0.9 : 1, jitter: 6, spill: R * 0.3, maxSeg: 5 });
           paintStrokes(env, T, st.mask, R * 0.5, 34, { alpha: water ? 0.9 : 1, jitter: 4, spill: R * 0.15, maxSeg: 3 });
           snapshot(st.phase, T); break;
         }
         case 'colors': case 'colorsSmall': {
           const T = water ? TmW : Tm;
-          const R = st.kind === 'colors' ? M / 55 : M / 130;
+          const R = st.kind === 'colors' ? M / 70 : M / 140;
           paintStrokes(env, T, st.mask, R, 22, { alpha, jitter: 8, spill: R * 0.4, maxSeg: 5 });
           paintStrokes(env, T, st.mask, R * 0.5, 34, { alpha, jitter: 5, spill: R * 0.2, maxSeg: 3 });
           snapshot(st.phase, T); break;
@@ -1072,6 +1189,12 @@ const PaintCore = (() => {
           paintStrokes(env, Tm, st.mask, R, 22, { alpha: 1, jitter: 6, spill: R * 0.35, maxSeg: 4 });
           paintStrokes(env, Tm, st.mask, R * 0.5, 34, { alpha: 1, jitter: 4, spill: R * 0.2, maxSeg: 3 });
           snapshot(st.phase, Tm); break;
+        }
+        case 'details': {
+          const all = new Uint8Array(n); for (let i = 0; i < n; i++) all[i] = reserved[i] ? 0 : 1;
+          const R = Math.max(2, M / 140);
+          paintStrokes(env, Tf, all, R, 48, { alpha: water ? 0.9 : 1, jitter: 5, spill: R, maxSeg: 4, clip: water });
+          snapshot(st.phase, Tf); break;
         }
         case 'refine': {
           const all = new Uint8Array(n); for (let i = 0; i < n; i++) all[i] = reserved[i] ? 0 : 1;
