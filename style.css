@@ -144,6 +144,21 @@ main { max-width: 860px; margin: 0 auto; padding: 8px 20px calc(120px + env(safe
 .round-btn svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; fill: none; }
 .round-btn:hover { border-color: var(--text); }
 
+/* ---------- selezione soggetti ---------- */
+.sel-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 0 0 14px; }
+.sel-size { display: inline-flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--muted); }
+.sel-size input { width: 110px; accent-color: var(--cad); }
+.sel-box, .sel-tools { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.sel-box { display: flex; justify-content: center; padding: 14px; background: var(--surface); border-radius: 6px; }
+#selCanvas {
+  display: block; max-width: 100%; max-height: 62vh; width: auto; height: auto;
+  box-shadow: var(--shadow); touch-action: none; cursor: crosshair;
+}
+.sel-legend { display: flex; gap: 18px; justify-content: center; margin-top: 10px; font-size: .8rem; color: var(--muted); }
+.lg::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.lg-s::before { background: #FF8A1F; }
+.lg-o::before { background: #3CC8FF; }
+
 /* ---------- elaborazione ---------- */
 .work { min-height: 50vh; display: grid; place-content: center; gap: 16px; text-align: center; }
 .work-bar { width: min(320px, 70vw); height: 2px; background: var(--line); overflow: hidden; }

@@ -1495,4 +1495,201 @@ Object.keys(I18N_VALUES).forEach((l) => {
   Object.assign(dst.phase.wat.desc, src.wd);
 });
 
+/* ---------- Testi della selezione dei soggetti ---------- */
+const I18N_SELECT = {
+  "it": {
+    "ui": {
+      "selTitle1": "Indica il soggetto principale",
+      "selHint1": "Tocca il soggetto: l'app seleziona da sola le zone simili. Tocca più volte per aggiungere parti, usa il pennello o la gomma per correggere.",
+      "selTitle2": "Indica gli oggetti secondari (facoltativo)",
+      "selHint2": "Tocca gli oggetti da dipingere dopo lo sfondo ma prima del soggetto, per esempio fiori, mobili o piccoli animali. Se non ce ne sono, analizza direttamente.",
+      "toolTap": "Tocco intelligente",
+      "toolBrush": "Pennello",
+      "toolErase": "Gomma",
+      "brushSize": "Dimensione",
+      "undo": "Annulla",
+      "clearSel": "Cancella",
+      "selNext1": "Avanti: oggetti",
+      "selSkip1": "Salta: riconoscimento automatico",
+      "selNext2": "Analizza il dipinto",
+      "selEmpty": "Seleziona almeno una parte del soggetto, oppure salta.",
+      "legendSubject": "Soggetto",
+      "legendObject": "Oggetti",
+      "userNote": "Soggetti e oggetti indicati da te."
+    },
+    "pt": {
+      "colorsBg": "Colori: sfondo e oggetti",
+      "colorsSubject": "Colori: soggetto"
+    },
+    "pd": {
+      "colorsBg": "Stendi il colore locale dei mezzi toni nello sfondo e negli oggetti secondari, tra gli scuri già stesi. Lavora per masse, senza ancora sfumare.",
+      "colorsSubject": "Ora il soggetto principale: stendi il colore locale dei suoi mezzi toni, osservando bene come la luce modella la forma."
+    },
+    "wt": {
+      "colorsBg": "Velature: sfondo e oggetti",
+      "colorsSubject": "Velature: soggetto"
+    },
+    "wd": {
+      "colorsBg": "Stendi le velature di colore dei mezzi toni nello sfondo e negli oggetti secondari, su carta asciutta.",
+      "colorsSubject": "Stendi le velature di colore del soggetto principale, lasciando bianca la carta nei punti di luce."
+    }
+  },
+  "en": {
+    "ui": {
+      "selTitle1": "Mark the main subject",
+      "selHint1": "Tap the subject: the app automatically selects similar areas. Tap again to add parts, and use the brush or eraser to correct.",
+      "selTitle2": "Mark secondary objects (optional)",
+      "selHint2": "Tap the objects to paint after the background but before the subject, for example flowers, furniture or small animals. If there are none, analyze right away.",
+      "toolTap": "Smart tap",
+      "toolBrush": "Brush",
+      "toolErase": "Eraser",
+      "brushSize": "Size",
+      "undo": "Undo",
+      "clearSel": "Clear",
+      "selNext1": "Next: objects",
+      "selSkip1": "Skip: automatic recognition",
+      "selNext2": "Analyze the painting",
+      "selEmpty": "Select at least part of the subject, or skip.",
+      "legendSubject": "Subject",
+      "legendObject": "Objects",
+      "userNote": "Subjects and objects marked by you."
+    },
+    "pt": {
+      "colorsBg": "Colors: background and objects",
+      "colorsSubject": "Colors: subject"
+    },
+    "pd": {
+      "colorsBg": "Lay the local midtone color in the background and the secondary objects, between the darks already laid. Work in masses, without blending yet.",
+      "colorsSubject": "Now the main subject: lay the local color of its midtones, watching carefully how the light shapes the form."
+    },
+    "wt": {
+      "colorsBg": "Glazes: background and objects",
+      "colorsSubject": "Glazes: subject"
+    },
+    "wd": {
+      "colorsBg": "Lay the midtone color glazes in the background and the secondary objects, on dry paper.",
+      "colorsSubject": "Lay the color glazes of the main subject, leaving the paper white at the highlights."
+    }
+  },
+  "fr": {
+    "ui": {
+      "selTitle1": "Indiquez le sujet principal",
+      "selHint1": "Touchez le sujet : l'application sélectionne automatiquement les zones semblables. Touchez à nouveau pour ajouter des parties et utilisez le pinceau ou la gomme pour corriger.",
+      "selTitle2": "Indiquez les objets secondaires (facultatif)",
+      "selHint2": "Touchez les objets à peindre après le fond mais avant le sujet, par exemple des fleurs, des meubles ou de petits animaux. S'il n'y en a pas, lancez directement l'analyse.",
+      "toolTap": "Toucher intelligent",
+      "toolBrush": "Pinceau",
+      "toolErase": "Gomme",
+      "brushSize": "Taille",
+      "undo": "Annuler",
+      "clearSel": "Effacer",
+      "selNext1": "Suivant : objets",
+      "selSkip1": "Passer : reconnaissance automatique",
+      "selNext2": "Analyser le tableau",
+      "selEmpty": "Sélectionnez au moins une partie du sujet, ou passez cette étape.",
+      "legendSubject": "Sujet",
+      "legendObject": "Objets",
+      "userNote": "Sujets et objets indiqués par vous."
+    },
+    "pt": {
+      "colorsBg": "Couleurs : fond et objets",
+      "colorsSubject": "Couleurs : sujet"
+    },
+    "pd": {
+      "colorsBg": "Posez la couleur locale des demi-teintes dans le fond et les objets secondaires, entre les sombres déjà posés. Travaillez par masses, sans fondre pour l'instant.",
+      "colorsSubject": "Place au sujet principal : posez la couleur locale de ses demi-teintes en observant comment la lumière modèle la forme."
+    },
+    "wt": {
+      "colorsBg": "Glacis : fond et objets",
+      "colorsSubject": "Glacis : sujet"
+    },
+    "wd": {
+      "colorsBg": "Posez les glacis de couleur des demi-teintes dans le fond et les objets secondaires, sur papier sec.",
+      "colorsSubject": "Posez les glacis de couleur du sujet principal, en laissant le papier blanc dans les lumières."
+    }
+  },
+  "es": {
+    "ui": {
+      "selTitle1": "Indica el sujeto principal",
+      "selHint1": "Toca el sujeto: la app selecciona automáticamente las zonas parecidas. Vuelve a tocar para añadir partes y usa el pincel o la goma para corregir.",
+      "selTitle2": "Indica los objetos secundarios (opcional)",
+      "selHint2": "Toca los objetos que se pintarán después del fondo pero antes del sujeto, por ejemplo flores, muebles o animales pequeños. Si no hay, analiza directamente.",
+      "toolTap": "Toque inteligente",
+      "toolBrush": "Pincel",
+      "toolErase": "Goma",
+      "brushSize": "Tamaño",
+      "undo": "Deshacer",
+      "clearSel": "Borrar",
+      "selNext1": "Siguiente: objetos",
+      "selSkip1": "Saltar: reconocimiento automático",
+      "selNext2": "Analizar el cuadro",
+      "selEmpty": "Selecciona al menos una parte del sujeto, o salta este paso.",
+      "legendSubject": "Sujeto",
+      "legendObject": "Objetos",
+      "userNote": "Sujetos y objetos indicados por ti."
+    },
+    "pt": {
+      "colorsBg": "Colores: fondo y objetos",
+      "colorsSubject": "Colores: sujeto"
+    },
+    "pd": {
+      "colorsBg": "Extiende el color local de los medios tonos en el fondo y en los objetos secundarios, entre los oscuros ya aplicados. Trabaja por masas, sin fundir todavía.",
+      "colorsSubject": "Ahora el sujeto principal: extiende el color local de sus medios tonos, observando cómo la luz modela la forma."
+    },
+    "wt": {
+      "colorsBg": "Veladuras: fondo y objetos",
+      "colorsSubject": "Veladuras: sujeto"
+    },
+    "wd": {
+      "colorsBg": "Extiende las veladuras de color de los medios tonos en el fondo y en los objetos secundarios, sobre papel seco.",
+      "colorsSubject": "Extiende las veladuras de color del sujeto principal, dejando el papel en blanco en las luces."
+    }
+  },
+  "de": {
+    "ui": {
+      "selTitle1": "Markiere das Hauptmotiv",
+      "selHint1": "Tippe auf das Motiv: Die App wählt ähnliche Bereiche automatisch aus. Tippe erneut, um Teile hinzuzufügen, und korrigiere mit Pinsel oder Radierer.",
+      "selTitle2": "Markiere Nebenobjekte (optional)",
+      "selHint2": "Tippe auf die Objekte, die nach dem Hintergrund, aber vor dem Motiv gemalt werden, zum Beispiel Blumen, Möbel oder kleine Tiere. Gibt es keine, starte direkt die Analyse.",
+      "toolTap": "Intelligentes Tippen",
+      "toolBrush": "Pinsel",
+      "toolErase": "Radierer",
+      "brushSize": "Größe",
+      "undo": "Rückgängig",
+      "clearSel": "Löschen",
+      "selNext1": "Weiter: Objekte",
+      "selSkip1": "Überspringen: automatische Erkennung",
+      "selNext2": "Bild analysieren",
+      "selEmpty": "Markiere mindestens einen Teil des Motivs oder überspringe diesen Schritt.",
+      "legendSubject": "Motiv",
+      "legendObject": "Objekte",
+      "userNote": "Von dir markierte Motive und Objekte."
+    },
+    "pt": {
+      "colorsBg": "Farben: Hintergrund und Objekte",
+      "colorsSubject": "Farben: Motiv"
+    },
+    "pd": {
+      "colorsBg": "Trage die Lokalfarbe der Mitteltöne im Hintergrund und in den Nebenobjekten zwischen den Dunkeltönen auf. Arbeite in Massen, noch ohne zu verblenden.",
+      "colorsSubject": "Jetzt das Hauptmotiv: Trage die Lokalfarbe seiner Mitteltöne auf und beobachte genau, wie das Licht die Form modelliert."
+    },
+    "wt": {
+      "colorsBg": "Lasuren: Hintergrund und Objekte",
+      "colorsSubject": "Lasuren: Motiv"
+    },
+    "wd": {
+      "colorsBg": "Trage die Farblasuren der Mitteltöne im Hintergrund und in den Nebenobjekten auf trockenes Papier auf.",
+      "colorsSubject": "Trage die Farblasuren des Hauptmotivs auf und lass das Papier an den Lichtern weiß."
+    }
+  }
+};
+Object.keys(I18N_SELECT).forEach((l) => {
+  const src = I18N_SELECT[l], dst = I18N[l];
+  Object.assign(dst.ui, src.ui);
+  Object.assign(dst.phase.paint.title, src.pt);
+  Object.assign(dst.phase.paint.desc, src.pd);
+  Object.assign(dst.phase.wat.title, src.wt);
+  Object.assign(dst.phase.wat.desc, src.wd);
+});
+
 if (typeof module !== 'undefined') module.exports = I18N;

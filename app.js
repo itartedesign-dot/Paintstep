@@ -768,6 +768,8 @@ const PaintCore = (() => {
      ========================================================= */
   const PLAN = {
     acrilico: {
+      colorsBg: { s: 'dryCanvas', b: 'damp', br: ['filbertL', 'flatM'] },
+      colorsSubject: { s: 'dryCanvas', b: 'damp', br: ['filbertM', 'roundM'] },
       background: { s: 'dryCanvas', b: 'damp', br: ['flatWash', 'flatL'] },
       darksBig: { s: 'dryCanvas', b: 'damp', br: ['flatM', 'filbertL'] },
       darksSmall: { s: 'dryCanvas', b: 'damp', br: ['roundM', 'roundS'] },
@@ -795,6 +797,8 @@ const PaintCore = (() => {
       final: { s: 'dryCanvas', b: 'damp', br: ['liner', 'roundS'] },
     },
     olio: {
+      colorsBg: { s: 'freshOil', b: 'dryOil', br: ['filbertL', 'flatM'] },
+      colorsSubject: { s: 'freshOil', b: 'dryOil', br: ['filbertM', 'roundM'] },
       background: { s: 'dryCanvas', b: 'solvent', br: ['flatWash', 'flatL'] },
       darksBig: { s: 'dryCanvas', b: 'solvent', br: ['flatM', 'filbertL'] },
       darksSmall: { s: 'dryCanvas', b: 'solvent', br: ['roundM', 'roundS'] },
@@ -822,6 +826,8 @@ const PaintCore = (() => {
       final: { s: 'freshOil', b: 'dryOil', br: ['liner', 'roundS'] },
     },
     acquerello: {
+      colorsBg: { s: 'dryPaper', b: 'damp', br: ['roundL', 'roundM'] },
+      colorsSubject: { s: 'dryPaper', b: 'damp', br: ['roundM', 'roundS'] },
       background: { s: 'wetPaper', b: 'loaded', br: ['flatWash', 'mop'] },
       wLight: { s: 'dryPaper', b: 'loaded', br: ['mop', 'roundL'] },
       wColors: { s: 'dryPaper', b: 'damp', br: ['roundL', 'roundM'] },
@@ -896,9 +902,11 @@ const PaintCore = (() => {
     }
     const big = new Uint8Array(n), small = new Uint8Array(n);
     let bigA = 0, smallA = 0;
+    const tiny = Math.max(40, n * 0.00015);
     for (let i = 0; i < n; i++) {
       if (lab[i] < 0) continue;
-      if (sizes[lab[i]] >= bigThr) { big[i] = 1; bigA++; } else { small[i] = 1; smallA++; }
+      const sz = sizes[lab[i]];
+      if (sz >= bigThr || sz < tiny) { big[i] = 1; bigA++; } else { small[i] = 1; smallA++; }
     }
     return { big, small, bigA, smallA };
   }
@@ -909,7 +917,7 @@ const PaintCore = (() => {
      → colori (mezzi toni) → chiari → rifinitura → bianchi e luci massime.
      Acquerello: sfondo → velature chiare → colori → scuri grandi → scuri piccoli → rifinitura → finale.
      ========================================================= */
-  async function buildSteps(src, medium, getDepth, onProgress = () => {}, getSeg = null) {
+  async function buildSteps(src, medium, getDepth, onProgress = () => {}, getSeg = null, user = null) {
     const { w, h, rgba } = src;
     const n = w * h;
     const M = Math.max(w, h);
@@ -958,22 +966,36 @@ const PaintCore = (() => {
     const found = [];
 
     /* 3) immagini obiettivo */
-    const Tb = quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.4)), rnd, water ? 75 : null, paper);
-    const Tm = quantTarget(px, w, h, M / 150, Math.round(cx.kmax * 0.8), rnd, null, paper, true);
-    const TmW = water ? quantTarget(px, w, h, M / 150, Math.round(cx.kmax * 0.75), rnd, 45, paper, true) : Tm;
+    const allArea = new Uint8Array(n); for (let i = 0; i < n; i++) allArea[i] = reserved[i] ? 0 : 1;
+    const Tb = dominantTarget(px, w, h, allArea, Math.max(6, Math.round(cx.kmax * 0.4)), M / 50, rnd, water ? 75 : null, paper)
+      || quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.4)), rnd, water ? 75 : null, paper);
+    const Tm = dominantTarget(px, w, h, allArea, Math.max(8, Math.round(cx.kmax * 0.8)), M / 100, rnd, null, paper)
+      || quantTarget(px, w, h, M / 150, Math.round(cx.kmax * 0.8), rnd, null, paper, true);
+    const TmW = water ? (dominantTarget(px, w, h, allArea, Math.max(8, Math.round(cx.kmax * 0.75)), M / 100, rnd, 45, paper) || Tm) : Tm;
     const Tf = quantTarget(px, w, h, 0, cx.kmax + 4, rnd, null, paper, true);
     const F = rgbaFrom(px, n);
 
     /* 4) sfondo = tutto ciò che non è soggetto (come ragiona un pittore) */
     const fg = new Uint8Array(n);
     let fgA = 0;
-    if (cat) for (let i = 0; i < n; i++) if (cat[i] === CAT.subject && !reserved[i]) { fg[i] = 1; fgA++; }
-    if (fgA >= tot * 0.02) {
+    let userSubject = null;
+    if (user && (user.subject || user.object)) {
+      userSubject = new Uint8Array(n);
+      for (let i = 0; i < n; i++) {
+        if (reserved[i]) continue;
+        const s1 = user.subject && user.subject[i], o1 = user.object && user.object[i];
+        if (s1 || o1) { fg[i] = 1; fgA++; }
+        if (s1) userSubject[i] = 1;
+        if (cat && (s1 || o1)) cat[i] = CAT.subject;
+      }
+      found.length = 0; found.push('user');
+    } else if (cat) for (let i = 0; i < n; i++) if (cat[i] === CAT.subject && !reserved[i]) { fg[i] = 1; fgA++; }
+    if (!userSubject && fgA >= tot * 0.02) {
       const grown = growSubject(fg, Tm, depth, w, h, reserved, Math.round(M / 6), cat, ai);
       fgA = 0; for (let i = 0; i < n; i++) { fg[i] = grown[i]; fgA += grown[i]; }
       if (cat) for (let i = 0; i < n; i++) if (fg[i] && cat[i] !== CAT.subject) cat[i] = CAT.subject;
     }
-    if (fgA < tot * 0.02) {
+    if (!userSubject && fgA < tot * 0.02) {
       /* nessun soggetto riconosciuto: separo vicino/lontano con la soglia di Otsu sulla profondità */
       fg.fill(0); fgA = 0;
       const hist = new Float64Array(256); let cnt = 0;
@@ -1008,7 +1030,7 @@ const PaintCore = (() => {
     const waterSplit = watA > tot * 0.05;
     if (waterSplit) for (let i = 0; i < n; i++) if (wat[i]) { bg[i] = 0; sky[i] = 0; }
     let bgA = 0, skyA = 0; for (let i = 0; i < n; i++) { bgA += bg[i]; skyA += sky[i]; }
-    if (cat) {
+    if (cat && !userSubject) {
       const cnt = [0, 0, 0, 0, 0]; for (let i = 0; i < n; i++) if (!reserved[i]) cnt[cat[i]]++;
       if (cnt[CAT.sky] > tot * 0.02) found.push('zSky');
       if (cnt[CAT.dist] > tot * 0.02) found.push('zDist');
@@ -1055,11 +1077,16 @@ const PaintCore = (() => {
       const fgAll = new Uint8Array(n); for (let i = 0; i < n; i++) fgAll[i] = !reserved[i] && !bg[i] ? 1 : 0;
       add('wLight', fgAll, { kind: 'wLight' });
       const col = new Uint8Array(n); for (let i = 0; i < n; i++) col[i] = mid[i] || dark[i] ? 1 : 0;
-      add('wColors', col, { kind: 'colors' });
+      if (userSubject) {
+        const a = new Uint8Array(n), b = new Uint8Array(n);
+        for (let i = 0; i < n; i++) if (col[i]) { if (userSubject[i]) b[i] = 1; else a[i] = 1; }
+        add('colorsBg', a, { kind: 'colors' }); add('colorsSubject', b, { kind: 'colors' });
+      } else add('wColors', col, { kind: 'colors' });
       if (darks.bigA > minA) add('darksBig', darks.big, { kind: 'darkBig' });
       if (darks.smallA > minA && N0 >= 8) add('darksSmall', darks.small, { kind: 'darkSmall' });
       else if (darks.smallA > 0 && darks.bigA <= minA) add('darksBig', dark, { kind: 'darkBig' });
-      add('details', null, { kind: 'details' });
+      if (userSubject) { add('details', null, { kind: 'details', skipSubject: true }); add('detailsSubject', userSubject, { kind: 'detailsSubject' }); }
+      else add('details', null, { kind: 'details' });
       add('refine', null, { kind: 'refine' });
       add('final', null, { kind: 'finalWater' });
     } else {
@@ -1068,7 +1095,11 @@ const PaintCore = (() => {
       else if (darks.bigA <= minA && darks.smallA > 0) add('darksBig', dark, { kind: 'darkBig' });
       const afterColors = 1 + (N0 >= 14 && lights.smallA > minA ? 1 : 0) + 2 + (whiteA > n * 0.0008 ? 1 : 0);
       const slots = clamp(N0 - 1 - (hasGround ? 1 : 0) - plan.length - afterColors, 1, 3);
-      if (slots === 1 || mids.smallA < minA) add('colors', mid, { kind: 'colors' });
+      if (userSubject) {
+        const a = new Uint8Array(n), b = new Uint8Array(n);
+        for (let i = 0; i < n; i++) if (mid[i]) { if (userSubject[i]) b[i] = 1; else a[i] = 1; }
+        add('colorsBg', a, { kind: 'colors' }); add('colorsSubject', b, { kind: 'colors' });
+      } else if (slots === 1 || mids.smallA < minA) add('colors', mid, { kind: 'colors' });
       else if (slots === 2) { add('colorsBig', mids.big, { kind: 'colors' }); add('colorsSmall', mids.small, { kind: 'colorsSmall' }); }
       else {
         const dv = []; for (let i = 0; i < n; i++) if (mids.big[i]) dv.push(depth[i]);
@@ -1080,7 +1111,8 @@ const PaintCore = (() => {
       }
       if (N0 >= 14 && lights.smallA > minA) { add('lights', lights.big, { kind: 'lights' }); add('lightsSmall', lights.small, { kind: 'lightsSmall' }); }
       else add('lights', light, { kind: 'lights' });
-      add('details', null, { kind: 'details' });
+      if (userSubject) { add('details', null, { kind: 'details', skipSubject: true }); add('detailsSubject', userSubject, { kind: 'detailsSubject' }); }
+      else add('details', null, { kind: 'details' });
       add('refine', null, { kind: 'refine' });
       if (whiteA > n * 0.0008) add('whites', white, { kind: 'whites' });
     }
@@ -1107,6 +1139,28 @@ const PaintCore = (() => {
     };
     const progress = (k) => onProgress(0.45 + 0.54 * (k / N), 'wStep', { s: k, n: N });
     /* nessun buco: ogni pixel della zona riceve il suo colore */
+    /* trama leggera della tela/pennello */
+    const grain = (() => {
+      const g = new Float32Array(n); const r2 = mulberry32(777);
+      for (let i = 0; i < n; i++) g[i] = r2() - 0.5;
+      const b = boxBlur1(g, w, h, 1);
+      for (let i = 0; i < n; i++) b[i] *= 14;
+      return b;
+    })();
+    /* stesura a MASSE: ogni zona prende il suo colore pieno, con bordo morbido */
+    const paintFlat = (T, mask, alpha = 1, soft = 2) => {
+      const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = mask[i];
+      const a = soft > 0 ? boxBlur1(f, w, h, soft) : f;
+      const d = ctx.getImageData(0, 0, w, h);
+      const D = d.data;
+      for (let i = 0; i < n; i++) {
+        const k = a[i] * alpha;
+        if (k < 0.02 || reserved[i]) continue;
+        const o = i * 4, g = grain[i];
+        D[o] += (T[o] + g - D[o]) * k; D[o + 1] += (T[o + 1] + g - D[o + 1]) * k; D[o + 2] += (T[o + 2] + g - D[o + 2]) * k;
+      }
+      ctx.putImageData(d, 0, 0);
+    };
     const coverAll = (T, mask) => {
       const d = ctx.getImageData(0, 0, w, h);
       for (let i = 0; i < n; i++) if (mask[i]) {
@@ -1158,42 +1212,35 @@ const PaintCore = (() => {
       const isLast = k === plan.length - 1;
       switch (st.kind) {
         case 'bg': {
-          const R = M / 26;
-          paintStrokes(env, Tbg, st.mask, R, 14, { alpha, jitter: 12, spill: R * 0.5, maxSeg: 6 });
-          paintStrokes(env, Tbg, st.mask, R * 0.45, 28, { alpha, jitter: 8, spill: R * 0.3, maxSeg: st.horizontal ? 7 : 4 });
-          coverAll(Tbg, st.mask);
+          paintFlat(Tbg, st.mask, alpha, 3);
           snapshot(st.phase, Tbg); break;
         }
         case 'wLight': {
-          const R = M / 40;
-          paintStrokes(env, Tb, st.mask, R, 14, { alpha: 0.75, jitter: 8, spill: R * 0.5, maxSeg: 5 });
-          paintStrokes(env, Tb, st.mask, R * 0.5, 28, { alpha: 0.75, jitter: 6, spill: R * 0.3, maxSeg: 3 });
+          paintFlat(Tb, st.mask, 0.8, 3);
           snapshot(st.phase, Tb); break;
         }
         case 'darkBig': case 'darkSmall': {
-          const T = Tm;
-          const R = st.kind === 'darkBig' ? M / 60 : M / 150;
-          paintStrokes(env, T, st.mask, R, 22, { alpha: water ? 0.9 : 1, jitter: 6, spill: R * 0.3, maxSeg: 5 });
-          paintStrokes(env, T, st.mask, R * 0.5, 34, { alpha: water ? 0.9 : 1, jitter: 4, spill: R * 0.15, maxSeg: 3 });
-          snapshot(st.phase, T); break;
+          paintFlat(Tm, st.mask, water ? 0.9 : 1, 2);
+          snapshot(st.phase, Tm); break;
         }
         case 'colors': case 'colorsSmall': {
           const T = water ? TmW : Tm;
-          const R = st.kind === 'colors' ? M / 70 : M / 140;
-          paintStrokes(env, T, st.mask, R, 22, { alpha, jitter: 8, spill: R * 0.4, maxSeg: 5 });
-          paintStrokes(env, T, st.mask, R * 0.5, 34, { alpha, jitter: 5, spill: R * 0.2, maxSeg: 3 });
+          paintFlat(T, st.mask, alpha, 2);
           snapshot(st.phase, T); break;
         }
         case 'lights': case 'lightsSmall': {
-          const R = st.kind === 'lights' ? M / 70 : M / 150;
-          paintStrokes(env, Tm, st.mask, R, 22, { alpha: 1, jitter: 6, spill: R * 0.35, maxSeg: 4 });
-          paintStrokes(env, Tm, st.mask, R * 0.5, 34, { alpha: 1, jitter: 4, spill: R * 0.2, maxSeg: 3 });
+          paintFlat(Tm, st.mask, 1, 2);
           snapshot(st.phase, Tm); break;
         }
         case 'details': {
-          const all = new Uint8Array(n); for (let i = 0; i < n; i++) all[i] = reserved[i] ? 0 : 1;
-          const R = Math.max(2, M / 140);
-          paintStrokes(env, Tf, all, R, 48, { alpha: water ? 0.9 : 1, jitter: 5, spill: R, maxSeg: 4, clip: water });
+          const all = new Uint8Array(n); for (let i = 0; i < n; i++) all[i] = reserved[i] || (st.skipSubject && userSubject && userSubject[i]) ? 0 : 1;
+          const R = Math.max(2, M / 120);
+          paintStrokes(env, Tf, all, R, 64, { alpha: water ? 0.9 : 1, jitter: 4, spill: R * 0.5, maxSeg: 6, clip: water || !!st.skipSubject });
+          snapshot(st.phase, Tf); break;
+        }
+        case 'detailsSubject': {
+          const R = Math.max(1.6, M / 180);
+          paintStrokes(env, Tf, st.mask, R, 42, { alpha: water ? 0.9 : 1, jitter: 4, spill: R * 0.5, maxSeg: 4 });
           snapshot(st.phase, Tf); break;
         }
         case 'refine': {
@@ -1218,10 +1265,10 @@ const PaintCore = (() => {
     }
 
     onProgress(1, 'wDone');
-    return { steps, w, h, complexity: cx, ai, seg: !!(cat && found.length), found };
+    return { steps, w, h, complexity: cx, ai, seg: !!(cat && found.length) && !userSubject, user: !!userSubject, found };
   }
 
-  return { MAX_DIM, PLAN, CAT, categoryOf, buildSteps, computeSwatches, getPigments, findRecipe, hex, lab, dE, describeColor, analyzeComplexity, key15 };
+  return { MAX_DIM, PLAN, CAT, categoryOf, boxBlur1, components, buildSteps, computeSwatches, getPigments, findRecipe, hex, lab, dE, describeColor, analyzeComplexity, key15 };
 })();
 
 if (typeof module !== 'undefined') module.exports = PaintCore;
@@ -1266,6 +1313,7 @@ if (typeof document !== 'undefined') (() => {
     $$('[data-i18n-aria]').forEach((el) => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
     if (state.dropError) $('#dropHint').textContent = t(state.dropError);
     if (!views.crop.hidden) updateCropDims();
+    if (views.select && !views.select.hidden) selTexts();
     if (!views.step.hidden && state.data) render(false);
     if (!$('#sheetBackdrop').hidden && state.sheetK != null) openSheet(state.sheetK, true);
   }
@@ -1277,7 +1325,7 @@ if (typeof document !== 'undefined') (() => {
     workKey: null, workVars: null,
   };
 
-  const views = { upload: $('#uploadView'), size: $('#sizeView'), crop: $('#cropView'), work: $('#workView'), step: $('#stepView') };
+  const views = { upload: $('#uploadView'), size: $('#sizeView'), crop: $('#cropView'), select: $('#selectView'), work: $('#workView'), step: $('#stepView') };
   const show = (name) => {
     Object.entries(views).forEach(([k, v]) => (v.hidden = k !== name));
     $('#newBtn').hidden = name === 'upload';
@@ -1558,6 +1606,170 @@ if (typeof document !== 'undefined') (() => {
     }
   }
 
+
+  /* ---------- 4b. selezione di soggetti e oggetti ---------- */
+  const sel = { pass: 1, tool: 'tap', subject: null, object: null, undo: [], lab: null, W: 0, H: 0 };
+  const sc = $('#selCanvas'), sctx = sc.getContext('2d');
+  let selBase = null, selQueued = false;
+
+  function openSelect() {
+    const { w, h, rgba } = state.src;
+    sel.W = w; sel.H = h; sel.pass = 1; sel.tool = 'tap'; sel.undo = [];
+    sel.subject = new Uint8Array(w * h); sel.object = new Uint8Array(w * h);
+    /* colori leggermente ammorbiditi, in Lab, per il tocco intelligente */
+    const n = w * h, f = new Float32Array(n);
+    const lab = new Float32Array(n * 3);
+    const ch = [0, 1, 2].map((c) => { for (let i = 0; i < n; i++) f[i] = rgba[i * 4 + c]; return PaintCore.boxBlur1(f, w, h, 1); });
+    for (let i = 0; i < n; i++) {
+      const L = PaintCore.lab(Math.round(ch[0][i]), Math.round(ch[1][i]), Math.round(ch[2][i]));
+      lab[i * 3] = L[0]; lab[i * 3 + 1] = L[1]; lab[i * 3 + 2] = L[2];
+    }
+    sel.lab = lab;
+    sc.width = w; sc.height = h;
+    selBase = new ImageData(new Uint8ClampedArray(rgba), w, h);
+    $('#selErr').hidden = true;
+    show('select');
+    selTexts(); selDraw();
+  }
+  function selTexts() {
+    const p = sel.pass;
+    $('#selTitle').textContent = t(p === 1 ? 'selTitle1' : 'selTitle2');
+    $('#selHint').textContent = t(p === 1 ? 'selHint1' : 'selHint2');
+    $('#selNext').textContent = t(p === 1 ? 'selNext1' : 'selNext2');
+    $('#selSkip').hidden = p !== 1;
+    $('#selSkip').textContent = t('selSkip1');
+    $$('#selTools [data-tool]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === sel.tool)));
+    $('#selBox').classList.toggle('pass2', p === 2);
+  }
+  function selDraw() {
+    if (selQueued) return;
+    selQueued = true;
+    requestAnimationFrame(() => {
+      selQueued = false;
+      const { W, H } = sel, n = W * H;
+      const out = new ImageData(W, H), d = out.data, b = selBase.data;
+      for (let i = 0; i < n; i++) {
+        const o = i * 4;
+        let r = b[o], g = b[o + 1], bl = b[o + 2];
+        if (sel.subject[i]) { r = r * 0.45 + 255 * 0.55; g = g * 0.45 + 138 * 0.55; bl = bl * 0.45 + 31 * 0.55; }
+        else if (sel.object[i]) { r = r * 0.45 + 60 * 0.55; g = g * 0.45 + 200 * 0.55; bl = bl * 0.45 + 255 * 0.55; }
+        else if (sel.pass === 2) { r *= 0.8; g *= 0.8; bl *= 0.8; }
+        d[o] = r; d[o + 1] = g; d[o + 2] = bl; d[o + 3] = 255;
+      }
+      sctx.putImageData(out, 0, 0);
+    });
+  }
+  const selMask = () => (sel.pass === 1 ? sel.subject : sel.object);
+  function selPushUndo() {
+    sel.undo.push([sel.subject.slice(), sel.object.slice()]);
+    if (sel.undo.length > 15) sel.undo.shift();
+  }
+  /* tocco intelligente: seleziona la zona di colore simile collegata al punto toccato */
+  function smartSelect(x, y) {
+    const { W, H, lab } = sel, n = W * H;
+    const seed = [0, 0, 0]; let cnt = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const xx = Math.min(W - 1, Math.max(0, x + dx)), yy = Math.min(H - 1, Math.max(0, y + dy)), i = yy * W + xx;
+      seed[0] += lab[i * 3]; seed[1] += lab[i * 3 + 1]; seed[2] += lab[i * 3 + 2]; cnt++;
+    }
+    seed[0] /= cnt; seed[1] /= cnt; seed[2] /= cnt;
+    const grow = (tol, local) => {
+      const reg = new Uint8Array(n), q = new Int32Array(n);
+      let head = 0, tail = 0;
+      const s0 = y * W + x; reg[s0] = 1; q[tail++] = s0;
+      const d2 = (i, A) => (lab[i * 3] - A[0]) ** 2 + (lab[i * 3 + 1] - A[1]) ** 2 + (lab[i * 3 + 2] - A[2]) ** 2;
+      const t2 = tol * tol, l2 = local * local;
+      while (head < tail && tail < n * 0.7) {
+        const i = q[head++], xx = i % W;
+        const P = [lab[i * 3], lab[i * 3 + 1], lab[i * 3 + 2]];
+        const nb = [xx > 0 ? i - 1 : -1, xx < W - 1 ? i + 1 : -1, i >= W ? i - W : -1, i < n - W ? i + W : -1];
+        for (const j of nb) {
+          if (j < 0 || reg[j]) continue;
+          if (d2(j, seed) < t2 && d2(j, P) < l2) { reg[j] = 1; q[tail++] = j; }
+        }
+      }
+      return { reg, size: tail };
+    };
+    let { reg, size } = grow(18, 10);
+    if (size < n * 0.0004) ({ reg, size } = grow(28, 14));
+    /* chiusura dei piccoli buchi e dei bordi sfrangiati */
+    const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = reg[i];
+    const r = Math.max(2, Math.round(Math.max(W, H) / 250));
+    const dil = PaintCore.boxBlur1(f, W, H, r); for (let i = 0; i < n; i++) f[i] = dil[i] > 0.05 ? 1 : 0;
+    const ero = PaintCore.boxBlur1(f, W, H, r);
+    const out = new Uint8Array(n); for (let i = 0; i < n; i++) out[i] = ero[i] > 0.95 || reg[i] ? 1 : 0;
+    const inv = new Uint8Array(n); for (let i = 0; i < n; i++) inv[i] = out[i] ? 0 : 1;
+    const { lab: comp, sizes } = PaintCore.components(inv, W, H);
+    const touches = new Uint8Array(sizes.length);
+    for (let x0 = 0; x0 < W; x0++) { if (comp[x0] >= 0) touches[comp[x0]] = 1; const b = (H - 1) * W + x0; if (comp[b] >= 0) touches[comp[b]] = 1; }
+    for (let y0 = 0; y0 < H; y0++) { const a = y0 * W, b = a + W - 1; if (comp[a] >= 0) touches[comp[a]] = 1; if (comp[b] >= 0) touches[comp[b]] = 1; }
+    for (let i = 0; i < n; i++) if (comp[i] >= 0 && !touches[comp[i]] && sizes[comp[i]] < n * 0.02) out[i] = 1;
+    return out;
+  }
+  function selPaintDot(x, y, r, val) {
+    const { W, H } = sel, m = selMask(), other = sel.pass === 1 ? sel.object : sel.subject;
+    const r2 = r * r;
+    for (let yy = Math.max(0, Math.floor(y - r)); yy <= Math.min(H - 1, Math.ceil(y + r)); yy++)
+      for (let xx = Math.max(0, Math.floor(x - r)); xx <= Math.min(W - 1, Math.ceil(x + r)); xx++) {
+        if ((xx - x) ** 2 + (yy - y) ** 2 > r2) continue;
+        const i = yy * W + xx;
+        if (val) { if (sel.pass === 2 && other[i]) continue; m[i] = 1; } else m[i] = 0;
+      }
+  }
+  const selPt = (e) => {
+    const r = sc.getBoundingClientRect();
+    return { x: Math.round(((e.clientX - r.left) * sel.W) / r.width), y: Math.round(((e.clientY - r.top) * sel.H) / r.height), k: sel.W / r.width };
+  };
+  let selDown = null;
+  sc.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); sc.setPointerCapture(e.pointerId);
+    const p = selPt(e);
+    selDown = { ...p, cx: e.clientX, cy: e.clientY, moved: false };
+    if (sel.tool !== 'tap') {
+      selPushUndo();
+      selPaintDot(p.x, p.y, ($('#brushSize').value / 2) * p.k, sel.tool === 'brush');
+      selDraw();
+    }
+  });
+  sc.addEventListener('pointermove', (e) => {
+    if (!selDown) return;
+    if (Math.hypot(e.clientX - selDown.cx, e.clientY - selDown.cy) > 8) selDown.moved = true;
+    if (sel.tool === 'tap') return;
+    const p = selPt(e), r = ($('#brushSize').value / 2) * p.k;
+    const steps = Math.max(1, Math.ceil(Math.hypot(p.x - selDown.x, p.y - selDown.y) / Math.max(1, r / 2)));
+    for (let k = 1; k <= steps; k++) selPaintDot(selDown.x + ((p.x - selDown.x) * k) / steps, selDown.y + ((p.y - selDown.y) * k) / steps, r, sel.tool === 'brush');
+    selDown.x = p.x; selDown.y = p.y;
+    selDraw();
+  });
+  const selUp = () => {
+    if (!selDown) return;
+    if (sel.tool === 'tap' && !selDown.moved) {
+      const x = Math.min(sel.W - 1, Math.max(0, selDown.x)), y = Math.min(sel.H - 1, Math.max(0, selDown.y));
+      selPushUndo();
+      const reg = smartSelect(x, y), m = selMask(), other = sel.pass === 1 ? sel.object : sel.subject;
+      for (let i = 0; i < reg.length; i++) if (reg[i] && !(sel.pass === 2 && other[i])) m[i] = 1;
+      selDraw();
+    }
+    selDown = null;
+  };
+  sc.addEventListener('pointerup', selUp);
+  sc.addEventListener('pointercancel', () => { selDown = null; });
+  $$('#selTools [data-tool]').forEach((b) => b.addEventListener('click', () => { sel.tool = b.dataset.tool; selTexts(); }));
+  $('#selUndo').addEventListener('click', () => { const u = sel.undo.pop(); if (u) { sel.subject = u[0]; sel.object = u[1]; selDraw(); } });
+  $('#selClear').addEventListener('click', () => { selPushUndo(); selMask().fill(0); selDraw(); });
+  $('#selNext').addEventListener('click', () => {
+    if (sel.pass === 1) {
+      let a = 0; for (let i = 0; i < sel.subject.length; i++) a += sel.subject[i];
+      if (a < sel.subject.length * 0.002) { $('#selErr').textContent = t('selEmpty'); $('#selErr').hidden = false; return; }
+      $('#selErr').hidden = true; sel.pass = 2; sel.tool = 'tap'; selTexts(); selDraw(); window.scrollTo({ top: 0 });
+    } else runAnalysis({ subject: sel.subject, object: sel.object });
+  });
+  $('#selSkip').addEventListener('click', () => runAnalysis(null));
+  $('#selBack').addEventListener('click', () => {
+    if (sel.pass === 2) { sel.pass = 1; sel.tool = 'tap'; selTexts(); selDraw(); }
+    else show('size');
+  });
+
   /* ---------- 5. analisi ---------- */
   async function analyze(rect) {
     const ar = rect.w / rect.h;
@@ -1572,6 +1784,12 @@ if (typeof document !== 'undefined') (() => {
     state.src = { w: W, h: H, rgba: x.getImageData(0, 0, W, H).data };
     state.rect = rect;
     state.orig = new ImageData(new Uint8ClampedArray(state.src.rgba), W, H);
+    state.srcCanvas = c;
+    openSelect();
+  }
+
+  async function runAnalysis(user) {
+    const c = state.srcCanvas, W = state.src.w, H = state.src.h;
 
     state.pigs = PaintCore.getPigments(state.medium, state.palette);
     state.recipes.clear();
@@ -1581,7 +1799,7 @@ if (typeof document !== 'undefined') (() => {
       state.workKey = key; state.workVars = vars;
       bar.style.width = (p * 100).toFixed(0) + '%';
       msg.textContent = t(key, vars);
-    }, (prog) => aiSeg(c, W, H, prog));
+    }, (prog) => aiSeg(c, W, H, prog), user);
     state.i = 0; state.zones = false; state.path = []; state.zoomOrig = false; state.split = false;
     $('#ribbon').innerHTML = state.data.steps.map(() => '<i></i>').join('');
     show('step');
@@ -1829,7 +2047,8 @@ if (typeof document !== 'undefined') (() => {
     $('#badges').innerHTML = badge(plan.s) + (plan.b ? badge(plan.b) : '');
 
     $('#depthNote').textContent = t(state.data.ai ? 'depthAI' : 'depthSimple') +
-      (state.data.seg ? ' ' + t('segNote', { list: state.data.found.map((k) => t(k)).join(', ') }) : '');
+      (state.data.seg ? ' ' + t('segNote', { list: state.data.found.map((k) => t(k)).join(', ') }) : '') +
+      (state.data.user ? ' ' + t('userNote') : '');
     $('#prevBtn').disabled = state.i === 0;
     $('#nextBtn').disabled = state.i === N - 1;
   }
