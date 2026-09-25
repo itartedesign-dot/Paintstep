@@ -10,13 +10,15 @@ L'app è statica: HTML, CSS e JavaScript, senza librerie e senza server. L'immag
 2. **Misure della tela** – facoltative. Se le proporzioni sono diverse dall'originale, sposti e ingrandisci il dipinto dentro la tela: lo zoom è limitato in modo che la tela sia sempre piena.
 3. **Analisi della profondità** – l'app stima cosa sta davanti e cosa sta dietro con il modello di intelligenza artificiale *Depth Anything V2 Small*, che gira nel browser tramite Transformers.js. Il modello (circa 27 MB) **non è nel repository**: viene scaricato da Hugging Face alla prima analisi e poi resta in memoria nel browser. Se il download non riesce (rete assente o lenta, dispositivo non compatibile), l'app passa da sola al **metodo semplificato**, basato su posizione, dettaglio e saturazione delle zone. Sotto il quadro una nota indica quale metodo è stato usato.
 4. **Riconoscimento degli elementi** – il modello *SegFormer B0* (NVIDIA, addestrato su ADE20K), anch'esso scaricato da Hugging Face alla prima analisi e poi tenuto in memoria, riconosce cielo, montagne, acqua, ambiente e soggetti (persone, animali, barche, oggetti di una natura morta). L'abbozzo segue così gli elementi veri, con step dai nomi chiari ("Abbozzo: cielo", "Abbozzo: acqua", "Abbozzo: soggetto", "Dettagli del soggetto") e pennellate orizzontali sull'acqua. Se il modello non è disponibile o non riconosce abbastanza elementi, l'app usa solo la profondità.
-5. **Step (6–20)** – costruiti come strati di pittura veri, con pennellate simulate che seguono le forme:
-   - disegno preparatorio;
-   - fondo tonale (olio e acrilico, nei quadri più complessi);
-   - abbozzo per zone, dal fondo al primo piano, con pennelli larghi;
-   - ombre e mezzi toni, poi luci (acquerello: prima i mezzi toni, poi le ombre, lasciando bianca la carta dove servono le luci);
-   - dettagli, dal lontano al vicino;
-   - luci finali e ritocchi.
+5. **Step (6–20)** – seguono il metodo del pittore, ragionando per valori (chiaro/scuro) e dimensione delle forme, con pennellate simulate che seguono le forme:
+   - disegno preparatorio e, nei quadri più complessi, fondo tonale;
+   - **sfondo** (cielo e zone lontane), che continua un po' sotto i soggetti;
+   - **masse scure grandi**, poi **masse scure piccole**, con scuri colorati (blu oltremare, terra d'ombra), non con il nero;
+   - **colori**: i mezzi toni con il colore locale, prima le zone grandi (lontane e vicine) poi quelle piccole;
+   - **chiari**, sopra i mezzi toni;
+   - **rifinitura** di passaggi, bordi e dettagli;
+   - **bianchi e luci massime**, per ultimi.
+   - Acquerello, dal chiaro allo scuro: lavatura dello sfondo, velature chiare, colori e mezzi toni, scuri grandi e piccoli, rifinitura, scuri finali (i bianchi sono la carta, riservata fin dall'inizio).
 6. **Scheda colore** – per ogni tinta calcola la miscela con un modello di mescolanza sottrattiva (Kubelka–Munk) e mostra dove stenderla in quello step.
 
 Ogni step mostra i pennelli consigliati e se lavorare bagnato o asciutto. Le frecce **Precedente / Successivo** sono subito sotto il quadro. Il tasto **Dividi opera** divide il quadro in quattro parti: toccandone una si apre lo zoom di quella porzione (fino a due livelli, per esempio "Step 5 · Zoom 2.4"). In alto una miniatura dell'opera evidenzia in arancione la parte mostrata e si può toccare per spostarsi; scorrendo col dito sullo zoom si passa alle parti vicine. Un selettore mostra lo zoom dello step oppure la stessa porzione del quadro originale, per confrontarli. Sotto, le frecce riportano allo zoom di primo livello o direttamente allo step di partenza.

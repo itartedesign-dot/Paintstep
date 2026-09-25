@@ -647,6 +647,17 @@ const PaintCore = (() => {
      ========================================================= */
   const PLAN = {
     acrilico: {
+      background: { s: 'dryCanvas', b: 'damp', br: ['flatWash', 'flatL'] },
+      darksBig: { s: 'dryCanvas', b: 'damp', br: ['flatM', 'filbertL'] },
+      darksSmall: { s: 'dryCanvas', b: 'damp', br: ['roundM', 'roundS'] },
+      colors: { s: 'dryCanvas', b: 'damp', br: ['filbertM', 'flatM'] },
+      colorsBig: { s: 'dryCanvas', b: 'damp', br: ['filbertL', 'flatM'] },
+      colorsFar: { s: 'dryCanvas', b: 'damp', br: ['filbertL', 'flatM'] },
+      colorsNear: { s: 'dryCanvas', b: 'damp', br: ['filbertM', 'flatM'] },
+      colorsSmall: { s: 'dryCanvas', b: 'damp', br: ['roundM', 'filbertM'] },
+      lightsSmall: { s: 'dryCanvas', b: 'damp', br: ['roundS', 'roundM'] },
+      refine: { s: 'dryCanvas', b: 'dry', br: ['fan', 'roundS', 'flatS'] },
+      whites: { s: 'dryCanvas', b: 'dry', br: ['roundS', 'liner'] },
       blockSky: { s: 'dryCanvas', b: 'damp', br: ['flatWash', 'flatL'] },
       blockDistance: { s: 'dryCanvas', b: 'damp', br: ['flatL', 'filbertL'] },
       blockWater: { s: 'dryCanvas', b: 'damp', br: ['flatL', 'flatM'] },
@@ -663,6 +674,17 @@ const PaintCore = (() => {
       final: { s: 'dryCanvas', b: 'damp', br: ['liner', 'roundS'] },
     },
     olio: {
+      background: { s: 'dryCanvas', b: 'solvent', br: ['flatWash', 'flatL'] },
+      darksBig: { s: 'dryCanvas', b: 'solvent', br: ['flatM', 'filbertL'] },
+      darksSmall: { s: 'dryCanvas', b: 'solvent', br: ['roundM', 'roundS'] },
+      colors: { s: 'freshOil', b: 'dryOil', br: ['filbertM', 'flatM'] },
+      colorsBig: { s: 'freshOil', b: 'dryOil', br: ['filbertL', 'flatM'] },
+      colorsFar: { s: 'freshOil', b: 'dryOil', br: ['filbertL', 'flatM'] },
+      colorsNear: { s: 'freshOil', b: 'dryOil', br: ['filbertM', 'flatM'] },
+      colorsSmall: { s: 'freshOil', b: 'dryOil', br: ['roundM', 'filbertM'] },
+      lightsSmall: { s: 'freshOil', b: 'dryOil', br: ['roundS', 'roundM'] },
+      refine: { s: 'freshOil', b: 'dryOil', br: ['fan', 'roundS'] },
+      whites: { s: 'freshOil', b: 'dryOil', br: ['roundS', 'liner'] },
       blockSky: { s: 'dryCanvas', b: 'solvent', br: ['flatWash', 'flatL'] },
       blockDistance: { s: 'dryCanvas', b: 'solvent', br: ['flatL', 'filbertL'] },
       blockWater: { s: 'dryCanvas', b: 'solvent', br: ['flatL', 'flatM'] },
@@ -679,6 +701,12 @@ const PaintCore = (() => {
       final: { s: 'freshOil', b: 'dryOil', br: ['liner', 'roundS'] },
     },
     acquerello: {
+      background: { s: 'wetPaper', b: 'loaded', br: ['flatWash', 'mop'] },
+      wLight: { s: 'dryPaper', b: 'loaded', br: ['mop', 'roundL'] },
+      wColors: { s: 'dryPaper', b: 'damp', br: ['roundL', 'roundM'] },
+      darksBig: { s: 'dryPaper', b: 'damp', br: ['roundM', 'roundL'] },
+      darksSmall: { s: 'dryPaper', b: 'damp', br: ['roundS', 'liner'] },
+      refine: { s: 'dryPaper', b: 'damp', br: ['roundS', 'flatS'] },
       blockSky: { s: 'wetPaper', b: 'loaded', br: ['flatWash', 'mop'] },
       blockDistance: { s: 'dryPaper', b: 'loaded', br: ['mop', 'roundL'] },
       blockWater: { s: 'dryPaper', b: 'loaded', br: ['flatWash', 'roundL'] },
@@ -710,9 +738,53 @@ const PaintCore = (() => {
     return CAT.scene;
   }
 
+  /* Componenti connesse di una maschera (4-vicini) */
+  function components(mask, w, h) {
+    const n = w * h;
+    const lab = new Int32Array(n).fill(-1);
+    const sizes = [];
+    const q = new Int32Array(n);
+    for (let s = 0; s < n; s++) {
+      if (!mask[s] || lab[s] >= 0) continue;
+      const id = sizes.length;
+      let head = 0, tail = 0;
+      q[tail++] = s; lab[s] = id;
+      while (head < tail) {
+        const i = q[head++], x = i % w;
+        if (x > 0 && mask[i - 1] && lab[i - 1] < 0) { lab[i - 1] = id; q[tail++] = i - 1; }
+        if (x < w - 1 && mask[i + 1] && lab[i + 1] < 0) { lab[i + 1] = id; q[tail++] = i + 1; }
+        if (i >= w && mask[i - w] && lab[i - w] < 0) { lab[i - w] = id; q[tail++] = i - w; }
+        if (i < n - w && mask[i + w] && lab[i + w] < 0) { lab[i + w] = id; q[tail++] = i + w; }
+      }
+      sizes.push(tail);
+    }
+    return { lab, sizes };
+  }
+  /* Divide una maschera in masse grandi e piccole */
+  function splitBySize(mask, w, h, bigMin) {
+    const n = w * h;
+    const { lab, sizes } = components(mask, w, h);
+    let bigThr = bigMin;
+    if (!sizes.some((s) => s >= bigThr) && sizes.length) {
+      const sorted = [...sizes].sort((a, b) => b - a);
+      const total = sorted.reduce((a, b) => a + b, 0);
+      let acc = 0; bigThr = sorted[0];
+      for (const s of sorted) { acc += s; bigThr = s; if (acc >= total * 0.5) break; }
+    }
+    const big = new Uint8Array(n), small = new Uint8Array(n);
+    let bigA = 0, smallA = 0;
+    for (let i = 0; i < n; i++) {
+      if (lab[i] < 0) continue;
+      if (sizes[lab[i]] >= bigThr) { big[i] = 1; bigA++; } else { small[i] = 1; smallA++; }
+    }
+    return { big, small, bigA, smallA };
+  }
+
   /* =========================================================
-     GENERAZIONE DEGLI STEP
-     getDepth / getSeg: async (progress) => Uint8Array | null
+     GENERAZIONE DEGLI STEP — metodo del pittore:
+     disegno → (fondo tonale) → sfondo → masse scure grandi → masse scure piccole
+     → colori (mezzi toni) → chiari → rifinitura → bianchi e luci massime.
+     Acquerello: sfondo → velature chiare → colori → scuri grandi → scuri piccoli → rifinitura → finale.
      ========================================================= */
   async function buildSteps(src, medium, getDepth, onProgress = () => {}, getSeg = null) {
     const { w, h, rgba } = src;
@@ -760,81 +832,112 @@ const PaintCore = (() => {
       if (L[0] > 92 && Math.hypot(L[1], L[2]) < 10) reserved[i] = 1;
     }
     let tot = 0; for (let i = 0; i < n; i++) if (!reserved[i]) tot++;
-
-    /* 3) budget di base */
-    const hasGround = !water && N0 >= 8;
-    const rem0 = N0 - 1 - (hasGround ? 1 : 0);
-    let Dd = Math.max(2, Math.round(rem0 * 0.25));
-    let Btarget = clamp(Math.round(rem0 * 0.4), 2, 6);
-    let Rf = Math.max(1, rem0 - Btarget - Dd);
-
-    /* 4) zone dell'abbozzo */
-    const zones = []; /* {phase, mask} */
-    let subjectMask = null;
     const found = [];
-    if (cat) {
-      const area = [0, 0, 0, 0, 0];
-      for (let i = 0; i < n; i++) if (!reserved[i]) area[cat[i]]++;
-      const has = (c, min) => area[c] >= tot * min;
-      /* categorie troppo piccole confluiscono nell'ambiente */
-      const eff = new Uint8Array(n);
-      const keep = [true, has(CAT.sky, 0.02), has(CAT.dist, 0.02), has(CAT.water, 0.02), has(CAT.subject, 0.004)];
-      for (let i = 0; i < n; i++) eff[i] = keep[cat[i]] ? cat[i] : CAT.scene;
-      cat = eff;
-      const maskOf = (c) => { const m = new Uint8Array(n); for (let i = 0; i < n; i++) if (cat[i] === c && !reserved[i]) m[i] = 1; return m; };
-      if (keep[CAT.sky]) { zones.push({ phase: 'blockSky', mask: maskOf(CAT.sky) }); found.push('zSky'); }
-      if (keep[CAT.dist]) { zones.push({ phase: 'blockDistance', mask: maskOf(CAT.dist) }); found.push('zDist'); }
-      const special = zones.length + (keep[CAT.water] ? 1 : 0) + (keep[CAT.subject] ? 1 : 0);
-      let sceneArea = 0; for (let i = 0; i < n; i++) if (cat[i] === CAT.scene && !reserved[i]) sceneArea++;
-      if (sceneArea >= tot * 0.01) {
-        const nb = sceneArea < tot * 0.2 ? 1 : clamp(Btarget - special, 1, 3);
-        const notScene = new Uint8Array(n);
-        for (let i = 0; i < n; i++) if (cat[i] !== CAT.scene || reserved[i]) notScene[i] = 1;
-        const bands = nb > 1 ? depthBands(depth, n, nb, notScene) : null;
-        const names = zones.length === 0
-          ? (nb === 1 ? ['blockFar'] : nb === 2 ? ['blockFar', 'blockNear'] : ['blockFar', 'blockMid', 'blockNear'])
-          : (nb === 1 ? ['blockMid'] : nb === 2 ? ['blockMid', 'blockNear'] : ['blockMid', 'blockMid', 'blockNear']);
-        for (let j = 0; j < nb; j++) {
-          const m = new Uint8Array(n);
-          for (let i = 0; i < n; i++) if (!notScene[i] && (!bands || bands[i] === j)) m[i] = 1;
-          zones.push({ phase: names[j], mask: m });
-        }
-        found.push('zScene');
-      }
-      if (keep[CAT.water]) { zones.push({ phase: 'blockWater', mask: maskOf(CAT.water), horizontal: true }); found.push('zWater'); }
-      if (keep[CAT.subject]) { subjectMask = maskOf(CAT.subject); zones.push({ phase: 'blockSubject', mask: subjectMask }); found.push('zSubject'); }
-      if (zones.length < 2) { zones.length = 0; subjectMask = null; found.length = 0; }
-    }
-    if (!zones.length) {
-      const B = Btarget;
-      const band = depthBands(depth, n, B, reserved);
-      for (let j = 0; j < B; j++) {
-        const m = new Uint8Array(n);
-        for (let i = 0; i < n; i++) if (band[i] === j && !reserved[i]) m[i] = 1;
-        zones.push({ phase: j === 0 ? 'blockFar' : j === B - 1 ? 'blockNear' : 'blockMid', mask: m });
-      }
-    }
 
-    /* budget finale (6–20 step) */
-    if (subjectMask) Dd = Math.max(Dd, 3);
-    let N = 1 + (hasGround ? 1 : 0) + zones.length + Rf + Dd;
-    while (N > 20 && Rf > 1) { Rf--; N--; }
-    while (N > 20 && Dd > 2) { Dd--; N--; }
-    while (N < 6) { Dd++; N++; }
-
-    /* 5) immagini obiettivo */
-    const Tb = quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.4)), rnd, water ? 72 : null, paper);
-    const Tm = quantTarget(px, w, h, M / 110, Math.round(cx.kmax * 0.75), rnd, water ? 40 : null, paper, true);
+    /* 3) immagini obiettivo */
+    const Tb = quantTarget(px, w, h, M / 40, Math.max(6, Math.round(cx.kmax * 0.4)), rnd, water ? 75 : null, paper);
+    const Tm = quantTarget(px, w, h, M / 110, Math.round(cx.kmax * 0.75), rnd, null, paper, true);
+    const TmW = water ? quantTarget(px, w, h, M / 110, Math.round(cx.kmax * 0.75), rnd, 45, paper, true) : Tm;
     const Tf = quantTarget(px, w, h, 0, cx.kmax + 4, rnd, null, paper, true);
     const F = rgbaFrom(px, n);
 
-    /* 6) tela, livello pennellate, maschera */
+    /* 4) sfondo: cielo/lontananze riconosciuti + zone più lontane (non soggetto) */
+    const bg = new Uint8Array(n), sky = new Uint8Array(n);
+    {
+      const dv = [];
+      for (let i = 0; i < n; i++) if (!reserved[i] && !(cat && cat[i] === CAT.subject)) dv.push(depth[i]);
+      dv.sort((a, b) => a - b);
+      const dThr = dv[Math.floor(dv.length * 0.35)] ?? 0;
+      for (let i = 0; i < n; i++) {
+        if (reserved[i]) continue;
+        const c = cat ? cat[i] : -1;
+        if (c === CAT.sky) { bg[i] = 1; sky[i] = 1; }
+        else if (c === CAT.dist) bg[i] = 1;
+        else if (c !== CAT.subject && depth[i] <= dThr) bg[i] = 1;
+      }
+    }
+    let bgA = 0, skyA = 0; for (let i = 0; i < n; i++) { bgA += bg[i]; skyA += sky[i]; }
+    if (cat) {
+      const cnt = [0, 0, 0, 0, 0]; for (let i = 0; i < n; i++) if (!reserved[i]) cnt[cat[i]]++;
+      if (cnt[CAT.sky] > tot * 0.02) found.push('zSky');
+      if (cnt[CAT.dist] > tot * 0.02) found.push('zDist');
+      if (cnt[CAT.water] > tot * 0.02) found.push('zWater');
+      if (cnt[CAT.subject] > tot * 0.004) found.push('zSubject');
+    }
+
+    /* 5) valori (chiaro/scuro) dall'immagine a dettaglio medio */
+    const Lm = new Float32Array(n), Lf = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      Lm[i] = lab(Tm[i * 4], Tm[i * 4 + 1], Tm[i * 4 + 2])[0];
+      Lf[i] = lab(F[i * 4], F[i * 4 + 1], F[i * 4 + 2])[0];
+    }
+    const quant = (arr, q) => { const v = []; for (let i = 0; i < n; i += 3) if (!reserved[i]) v.push(arr[i]); v.sort((a, b) => a - b); return v[Math.min(v.length - 1, Math.floor(q * v.length))] ?? 50; };
+    const qDark = quant(Lm, 0.28), qLight = quant(Lm, 0.72), qWhite = Math.max(quant(Lf, 0.95), 72);
+    const dark = new Uint8Array(n), mid = new Uint8Array(n), light = new Uint8Array(n), white = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      if (reserved[i]) continue;
+      if (Lm[i] <= qDark) dark[i] = 1; else if (Lm[i] >= qLight) light[i] = 1; else mid[i] = 1;
+      if (!water && Lf[i] >= qWhite) white[i] = 1;
+    }
+    const bigMin = Math.max(400, n * 0.004);
+    const darks = splitBySize(dark, w, h, bigMin);
+    const mids = splitBySize(mid, w, h, bigMin);
+    const lights = splitBySize(light, w, h, bigMin);
+    let whiteA = 0; for (let i = 0; i < n; i++) whiteA += white[i];
+
+    /* 6) piano degli step */
+    const hasGround = !water && N0 >= 8;
+    const plan = [];
+    const add = (phase, mask, opts) => plan.push({ phase, mask, ...opts });
+    const minA = n * 0.0025;
+    const skySplit = skyA > tot * 0.08 && bgA - skyA > tot * 0.05 && N0 >= 9;
+
+    if (bgA > tot * 0.03) {
+      if (skySplit) {
+        const rest = new Uint8Array(n); for (let i = 0; i < n; i++) rest[i] = bg[i] && !sky[i] ? 1 : 0;
+        add('blockSky', sky, { kind: 'bg' });
+        add('background', rest, { kind: 'bg' });
+      } else add('background', bg, { kind: 'bg' });
+    }
+    if (water) {
+      const fgAll = new Uint8Array(n); for (let i = 0; i < n; i++) fgAll[i] = !reserved[i] && !bg[i] ? 1 : 0;
+      add('wLight', fgAll, { kind: 'wLight' });
+      const col = new Uint8Array(n); for (let i = 0; i < n; i++) col[i] = mid[i] || dark[i] ? 1 : 0;
+      add('wColors', col, { kind: 'colors' });
+      if (darks.bigA > minA) add('darksBig', darks.big, { kind: 'darkBig' });
+      if (darks.smallA > minA && N0 >= 8) add('darksSmall', darks.small, { kind: 'darkSmall' });
+      else if (darks.smallA > 0 && darks.bigA <= minA) add('darksBig', dark, { kind: 'darkBig' });
+      add('refine', null, { kind: 'refine' });
+      add('final', null, { kind: 'finalWater' });
+    } else {
+      if (darks.bigA > minA) add('darksBig', darks.big, { kind: 'darkBig' });
+      if (darks.smallA > minA && N0 >= 8) add('darksSmall', darks.small, { kind: 'darkSmall' });
+      else if (darks.bigA <= minA && darks.smallA > 0) add('darksBig', dark, { kind: 'darkBig' });
+      const afterColors = 1 + (N0 >= 14 && lights.smallA > minA ? 1 : 0) + 1 + (whiteA > n * 0.0008 ? 1 : 0);
+      const slots = clamp(N0 - 1 - (hasGround ? 1 : 0) - plan.length - afterColors, 1, 3);
+      if (slots === 1 || mids.smallA < minA) add('colors', mid, { kind: 'colors' });
+      else if (slots === 2) { add('colorsBig', mids.big, { kind: 'colors' }); add('colorsSmall', mids.small, { kind: 'colorsSmall' }); }
+      else {
+        const dv = []; for (let i = 0; i < n; i++) if (mids.big[i]) dv.push(depth[i]);
+        dv.sort((a, b) => a - b); const dMed = dv[Math.floor(dv.length / 2)] ?? 128;
+        const far = new Uint8Array(n), near = new Uint8Array(n);
+        for (let i = 0; i < n; i++) if (mids.big[i]) { if (depth[i] <= dMed) far[i] = 1; else near[i] = 1; }
+        add('colorsFar', far, { kind: 'colors' }); add('colorsNear', near, { kind: 'colors' });
+        add('colorsSmall', mids.small, { kind: 'colorsSmall' });
+      }
+      if (N0 >= 14 && lights.smallA > minA) { add('lights', lights.big, { kind: 'lights' }); add('lightsSmall', lights.small, { kind: 'lightsSmall' }); }
+      else add('lights', light, { kind: 'lights' });
+      add('refine', null, { kind: 'refine' });
+      if (whiteA > n * 0.0008) add('whites', white, { kind: 'whites' });
+    }
+    const N = 1 + (hasGround ? 1 : 0) + plan.length;
+
+    /* 7) tela, livello pennellate, maschera */
     const mk = () => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
     const canvas = mk(), layer = mk(), maskCv = mk();
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const orient = orientationField(px, w, h);
     const env = { w, h, ctx, layer, lctx: layer.getContext('2d'), maskCv, mctx: maskCv.getContext('2d'), orient, rnd };
-    /* l'acqua si dipinge con pennellate orizzontali */
     if (cat) for (let i = 0; i < n; i++) if (cat[i] === CAT.water) orient[i] = 0.06 * Math.sin(i * 0.37);
 
     const steps = [];
@@ -849,8 +952,15 @@ const PaintCore = (() => {
       prev = img;
     };
     const progress = (k) => onProgress(0.45 + 0.54 * (k / N), 'wStep', { s: k, n: N });
+    const exactFill = (skip) => {
+      const d = ctx.getImageData(0, 0, w, h);
+      for (let i = 0; i < n; i++) if (!reserved[i] && !(skip && skip[i])) {
+        const o = i * 4; d.data[o] = F[o]; d.data[o + 1] = F[o + 1]; d.data[o + 2] = F[o + 2];
+      }
+      ctx.putImageData(d, 0, 0);
+    };
 
-    /* STEP 1: disegno */
+    /* STEP: disegno */
     progress(1); await tick();
     ctx.fillStyle = `rgb(${paper})`; ctx.fillRect(0, 0, w, h);
     const mag = sobel(grayOf(blur(px, w, h, 3), n), w, h);
@@ -869,7 +979,7 @@ const PaintCore = (() => {
     prev = new Uint8ClampedArray(n * 4);
     snapshot('sketch', null, { changed: changed1, swatches: [{ rgb: line, hex: hex(...line), desc: { b: water ? 'sketchWat' : 'sketchOil' }, share: 1, sketch: true }] });
 
-    /* STEP 2: fondo tonale (olio / acrilico) */
+    /* STEP: fondo tonale */
     if (hasGround) {
       progress(2); await tick();
       const ground = medium === 'olio' ? [196, 158, 124] : [204, 176, 146];
@@ -879,99 +989,62 @@ const PaintCore = (() => {
     }
 
     const alpha = water ? 0.82 : 1;
-
-    /* ABBOZZO per zone */
-        for (let j = 0; j < zones.length; j++) {
+    for (let k = 0; k < plan.length; k++) {
       progress(steps.length + 1); await tick();
-      const z = zones[j];
-      const big = z.phase === 'blockSky' || z.phase === 'blockDistance' || z.phase === 'blockFar';
-      const R = z.phase === 'blockSubject' ? M / 55 : big ? M / 26 : lerp(M / 30, M / 42, zones.length > 1 ? j / (zones.length - 1) : 0);
-      paintStrokes(env, Tb, z.mask, R, 16, { alpha, jitter: 12, spill: R * 0.6, maxSeg: z.horizontal ? 7 : 5 });
-      paintStrokes(env, Tb, z.mask, R * 0.45, 30, { alpha, jitter: 8, spill: R * 0.3, maxSeg: 4 });
-      snapshot(z.phase, Tb);
-    }
-
-    /* STRUTTURA: ombre → luci (acquerello: chiari → scuri); prima l'ambiente, poi il soggetto */
-    {
-      const gd = Rf >= 4 ? 2 : 1;
-      const gv = Math.ceil(Rf / gd);
-      const lum = new Float32Array(n);
-      const vals = [];
-      for (let i = 0; i < n; i++) { lum[i] = lumY(Tm[i * 4], Tm[i * 4 + 1], Tm[i * 4 + 2]); if (!reserved[i]) vals.push(lum[i]); }
-      vals.sort((a, b) => a - b);
-      const vq = (q) => vals[Math.min(vals.length - 1, Math.floor(q * vals.length))] ?? 0;
-      const vCuts = Array.from({ length: gv - 1 }, (_, k) => vq((k + 1) / gv));
-      const dVals = []; for (let i = 0; i < n; i++) if (!reserved[i]) dVals.push(depth[i]);
-      dVals.sort((a, b) => a - b);
-      const dMed = dVals[Math.floor(dVals.length / 2)] ?? 128;
-      const groupOf = (i) => (gd === 1 ? 0 : subjectMask ? (subjectMask[i] ? 1 : 0) : (depth[i] > dMed ? 1 : 0));
-      const cells = [];
-      for (let dg = 0; dg < gd; dg++) for (let v = 0; v < gv; v++) cells.push([dg, water ? gv - 1 - v : v]);
-      const plan = [];
-      for (let s = 0; s < Rf; s++) plan.push(s < Rf - 1 ? [cells[s]] : cells.slice(s));
-      for (const cellList of plan) {
-        progress(steps.length + 1); await tick();
-        const mask = new Uint8Array(n);
-        for (let i = 0; i < n; i++) {
-          if (reserved[i]) continue;
-          const dg = groupOf(i);
-          let vg = 0; while (vg < vCuts.length && lum[i] > vCuts[vg]) vg++;
-          if (cellList.some(([a, b]) => a === dg && b === vg)) mask[i] = 1;
+      const st = plan[k];
+      const isLast = k === plan.length - 1;
+      switch (st.kind) {
+        case 'bg': {
+          const R = M / 26;
+          paintStrokes(env, Tb, st.mask, R, 14, { alpha, jitter: 12, spill: R * 1.6, maxSeg: 6 });
+          paintStrokes(env, Tb, st.mask, R * 0.45, 28, { alpha, jitter: 8, spill: R * 0.6, maxSeg: 4 });
+          snapshot(st.phase, Tb); break;
         }
-        const firstV = cellList[0][1];
-        const darkHalf = gv > 1 && firstV < gv / 2;
-        const phase = water ? (darkHalf ? 'wDark' : 'wMid') : (darkHalf || gv === 1 ? 'shadows' : 'lights');
-        const R = M / 80;
-        paintStrokes(env, Tm, mask, R, 40, { alpha, jitter: 8, spill: R * 0.4, maxSeg: 5 });
-        paintStrokes(env, Tm, mask, R * 0.5, 60, { alpha, jitter: 5, spill: R * 0.2, maxSeg: 3 });
-        snapshot(phase, Tm);
+        case 'wLight': {
+          const R = M / 40;
+          paintStrokes(env, Tb, st.mask, R, 14, { alpha: 0.75, jitter: 8, spill: R * 0.5, maxSeg: 5 });
+          paintStrokes(env, Tb, st.mask, R * 0.5, 28, { alpha: 0.75, jitter: 6, spill: R * 0.3, maxSeg: 3 });
+          snapshot(st.phase, Tb); break;
+        }
+        case 'darkBig': case 'darkSmall': {
+          const T = Tm;
+          const R = st.kind === 'darkBig' ? M / 50 : M / 140;
+          paintStrokes(env, T, st.mask, R, 22, { alpha: water ? 0.9 : 1, jitter: 6, spill: R * 0.3, maxSeg: 5 });
+          paintStrokes(env, T, st.mask, R * 0.5, 34, { alpha: water ? 0.9 : 1, jitter: 4, spill: R * 0.15, maxSeg: 3 });
+          snapshot(st.phase, T); break;
+        }
+        case 'colors': case 'colorsSmall': {
+          const T = water ? TmW : Tm;
+          const R = st.kind === 'colors' ? M / 55 : M / 130;
+          paintStrokes(env, T, st.mask, R, 22, { alpha, jitter: 8, spill: R * 0.4, maxSeg: 5 });
+          paintStrokes(env, T, st.mask, R * 0.5, 34, { alpha, jitter: 5, spill: R * 0.2, maxSeg: 3 });
+          snapshot(st.phase, T); break;
+        }
+        case 'lights': case 'lightsSmall': {
+          const R = st.kind === 'lights' ? M / 70 : M / 150;
+          paintStrokes(env, Tm, st.mask, R, 22, { alpha: 1, jitter: 6, spill: R * 0.35, maxSeg: 4 });
+          paintStrokes(env, Tm, st.mask, R * 0.5, 34, { alpha: 1, jitter: 4, spill: R * 0.2, maxSeg: 3 });
+          snapshot(st.phase, Tm); break;
+        }
+        case 'refine': {
+          const all = new Uint8Array(n); for (let i = 0; i < n; i++) all[i] = reserved[i] ? 0 : 1;
+          const R = Math.max(1.5, M / 200);
+          paintStrokes(env, Tf, all, R, 36, { alpha: water ? 0.9 : 1, jitter: 4, spill: R, maxSeg: 4, clip: water });
+          /* la rifinitura porta il quadro al definito, tranne i bianchi che arrivano per ultimi */
+          if (!water) exactFill(isLast ? null : white);
+          snapshot(st.phase, Tf); break;
+        }
+        case 'whites': {
+          const R = Math.max(1.2, M / 300);
+          paintStrokes(env, F, st.mask, R, 20, { alpha: 1, jitter: 0, spill: R * 0.5, maxSeg: 3 });
+          exactFill(null);
+          snapshot(st.phase, F); break;
+        }
+        case 'finalWater': {
+          exactFill(null);
+          snapshot(st.phase, F); break;
+        }
       }
-    }
-
-    /* DETTAGLI: ambiente dal lontano al vicino, poi il soggetto */
-    const detSteps = Dd - 1;
-    const bgSteps = subjectMask && detSteps >= 2 ? detSteps - 1 : detSteps;
-    const dCuts = [];
-    {
-      const dv = []; for (let i = 0; i < n; i++) if (!reserved[i] && !(subjectMask && detSteps >= 2 && subjectMask[i])) dv.push(depth[i]);
-      dv.sort((a, b) => a - b);
-      for (let k = 1; k < bgSteps; k++) dCuts.push(dv[Math.floor((k / bgSteps) * dv.length)] ?? 128);
-    }
-    const Rd = Math.max(1.5, M / 180);
-    for (let s = 0; s < bgSteps; s++) {
-      progress(steps.length + 1); await tick();
-      const mask = new Uint8Array(n);
-      for (let i = 0; i < n; i++) {
-        if (reserved[i]) continue;
-        if (subjectMask && detSteps >= 2 && subjectMask[i]) continue;
-        let g = 0; while (g < dCuts.length && depth[i] > dCuts[g]) g++;
-        if (g === s) mask[i] = 1;
-      }
-      paintStrokes(env, Tf, mask, Rd, 45, { alpha: water ? 0.9 : 1, jitter: 6, spill: Rd, maxSeg: 4 });
-      snapshot('details', Tf);
-    }
-    if (subjectMask && detSteps >= 2) {
-      progress(steps.length + 1); await tick();
-      paintStrokes(env, Tf, subjectMask, Rd * 0.8, 40, { alpha: water ? 0.9 : 1, jitter: 5, spill: Rd, maxSeg: 4 });
-      snapshot('detailsSubject', Tf);
-    }
-
-    /* FINALE: luci, accenti, ritocchi */
-    {
-      progress(N); await tick();
-      const mask = new Uint8Array(n);
-      for (let i = 0; i < n; i++) if (!reserved[i]) mask[i] = 1;
-      const R = Math.max(1.2, M / 360);
-      paintStrokes(env, F, mask, R, 40, { alpha: 1, jitter: 3, clip: water, spill: 0, maxSeg: 3 });
-      paintStrokes(env, F, mask, Math.max(0.8, R * 0.6), 70, { alpha: 1, jitter: 0, clip: water, spill: 0, maxSeg: 2 });
-      /* il quadro finito dev'essere definito: completo pixel per pixel */
-      const done = ctx.getImageData(0, 0, w, h);
-      for (let i = 0; i < n; i++) if (!reserved[i]) {
-        const o = i * 4;
-        done.data[o] = F[o]; done.data[o + 1] = F[o + 1]; done.data[o + 2] = F[o + 2];
-      }
-      ctx.putImageData(done, 0, 0);
-      snapshot('final', F);
     }
 
     onProgress(1, 'wDone');

@@ -1233,4 +1233,266 @@ const I18N_ZOOM = {
 };
 Object.keys(I18N_ZOOM).forEach((l) => Object.assign(I18N[l].ui, I18N_ZOOM[l]));
 
+/* ---------- Testi del metodo del pittore (sfondo, scuri, colori, chiari, bianchi) ---------- */
+const I18N_VALUES = {
+  "it": {
+    "pt": {
+      "background": "Sfondo",
+      "darksBig": "Masse scure grandi",
+      "darksSmall": "Masse scure piccole",
+      "colors": "Colori",
+      "colorsBig": "Colori: zone grandi",
+      "colorsSmall": "Colori: zone piccole",
+      "colorsFar": "Colori: zone lontane",
+      "colorsNear": "Colori: zone vicine",
+      "lights": "Chiari",
+      "lightsSmall": "Chiari: zone piccole",
+      "refine": "Rifinitura",
+      "whites": "Bianchi e luci massime"
+    },
+    "pd": {
+      "background": "Stendi tutto lo sfondo con i suoi colori semplificati, a pennellate larghe. Fai continuare il colore un po' sotto i soggetti: quando li dipingerai sopra, i bordi resteranno puliti.",
+      "darksBig": "Individua le grandi zone scure che reggono la composizione e stendile con scuri colorati, per esempio blu oltremare e terra d'ombra, non con il nero. È la struttura del quadro: controlla forme e proporzioni.",
+      "darksSmall": "Aggiungi gli scuri più piccoli: ombre portate, incavi, pieghe, occhi. Sempre scuri colorati, con un pennello più piccolo.",
+      "colors": "Riempi i mezzi toni con il colore locale di ogni zona, tra gli scuri già stesi. Confronta sempre ogni colore con quelli vicini.",
+      "colorsBig": "Stendi il colore locale nelle zone di mezzo tono più ampie, tra gli scuri già stesi. Lavora per campiture, senza ancora sfumare.",
+      "colorsSmall": "Completa i mezzi toni nelle zone più piccole e nei passaggi tra una forma e l'altra, con pennelli più piccoli.",
+      "colorsFar": "Stendi il colore locale dei mezzi toni partendo dalle zone più lontane, con colori un po' più freddi e meno contrastati.",
+      "colorsNear": "Prosegui con il colore locale dei mezzi toni nelle zone più vicine e sul soggetto, con colori più caldi e saturi.",
+      "lights": "Stendi le zone chiare sopra i mezzi toni per dare volume alle forme. I chiari vanno sempre sopra gli scuri, mai il contrario.",
+      "lightsSmall": "Aggiungi i chiari più piccoli: riflessi, bordi illuminati, piccoli piani in luce.",
+      "refine": "Unisci i passaggi tra scuri, colori e chiari, definisci i bordi e aggiungi i dettagli. Sfuma dove la forma gira, lascia netto dove c'è contrasto.",
+      "whites": "Per ultimi, i punti più luminosi: pochi tocchi decisi di colore chiaro e corposo, quasi puro. Sono loro a far vivere il quadro."
+    },
+    "od": {
+      "background": "Stendi tutto lo sfondo con colore magro, diluito con solvente, a pennellate larghe. Fai continuare il colore un po' sotto i soggetti: i bordi resteranno puliti.",
+      "whites": "Per ultimi, i punti più luminosi: pochi tocchi decisi di colore chiaro e corposo, con un po' di medium oleoso, rispettando la regola del grasso su magro."
+    },
+    "wt": {
+      "background": "Lavatura dello sfondo",
+      "wLight": "Velature chiare",
+      "wColors": "Colori e mezzi toni",
+      "darksBig": "Scuri: masse grandi",
+      "darksSmall": "Scuri: masse piccole",
+      "refine": "Rifinitura"
+    },
+    "wd": {
+      "background": "Bagna la carta e stendi lo sfondo con lavature chiare e ampie, facendole continuare un po' sotto i soggetti. Lascia asciugare del tutto.",
+      "wLight": "Stendi una prima velatura chiara su tutti i soggetti, lasciando bianca la carta nelle luci. È la base su cui costruirai i colori.",
+      "wColors": "Quando la carta è asciutta, stendi il colore locale dei mezzi toni con velature più cariche.",
+      "darksBig": "Ora le grandi masse scure, con scuri colorati (per esempio blu oltremare e terra d'ombra) e poca acqua.",
+      "darksSmall": "Aggiungi gli scuri più piccoli con un pennello a punta: ombre portate, incavi, piccoli accenti.",
+      "refine": "Unisci i passaggi e definisci i bordi con pennello umido e poca acqua. Togli il liquido di mascheratura."
+    }
+  },
+  "en": {
+    "pt": {
+      "background": "Background",
+      "darksBig": "Large dark masses",
+      "darksSmall": "Small dark masses",
+      "colors": "Colors",
+      "colorsBig": "Colors: large areas",
+      "colorsSmall": "Colors: small areas",
+      "colorsFar": "Colors: distant areas",
+      "colorsNear": "Colors: near areas",
+      "lights": "Lights",
+      "lightsSmall": "Lights: small areas",
+      "refine": "Refinement",
+      "whites": "Whites and brightest lights"
+    },
+    "pd": {
+      "background": "Lay the whole background with simplified colors and broad strokes. Let the color run slightly under the subjects: when you paint them on top, the edges will stay clean.",
+      "darksBig": "Find the large dark areas that hold the composition together and lay them with colored darks, such as ultramarine blue and burnt umber, not black. This is the structure of the painting: check shapes and proportions.",
+      "darksSmall": "Add the smaller darks: cast shadows, hollows, folds, eyes. Still colored darks, with a smaller brush.",
+      "colors": "Fill the midtones with the local color of each area, between the darks you've already laid. Always compare each color with its neighbors.",
+      "colorsBig": "Lay the local color in the largest midtone areas, between the darks. Work in flat patches, without blending yet.",
+      "colorsSmall": "Complete the midtones in the smaller areas and in the transitions between shapes, with smaller brushes.",
+      "colorsFar": "Lay the local midtone colors starting from the most distant areas, with slightly cooler, less contrasted colors.",
+      "colorsNear": "Continue with the local midtone colors in the nearer areas and on the subject, with warmer, more saturated colors.",
+      "lights": "Lay the light areas over the midtones to give the forms volume. Lights always go over darks, never the other way around.",
+      "lightsSmall": "Add the smaller lights: reflections, lit edges, small planes in the light.",
+      "refine": "Blend the transitions between darks, colors and lights, define the edges and add the details. Soften where the form turns, keep it sharp where there is contrast.",
+      "whites": "Last of all, the brightest points: a few decisive touches of thick, light, almost pure color. They are what bring the painting to life."
+    },
+    "od": {
+      "background": "Lay the whole background with lean paint thinned with solvent, using broad strokes. Let the color run slightly under the subjects: the edges will stay clean.",
+      "whites": "Last of all, the brightest points: a few decisive touches of thick, light paint with a little oil medium, following the fat-over-lean rule."
+    },
+    "wt": {
+      "background": "Background wash",
+      "wLight": "Light glazes",
+      "wColors": "Colors and midtones",
+      "darksBig": "Darks: large masses",
+      "darksSmall": "Darks: small masses",
+      "refine": "Refinement"
+    },
+    "wd": {
+      "background": "Wet the paper and lay the background with broad, light washes, letting them run slightly under the subjects. Let it dry completely.",
+      "wLight": "Lay a first light glaze over all the subjects, leaving the paper white in the highlights. This is the base for the colors.",
+      "wColors": "When the paper is dry, lay the local midtone colors with stronger glazes.",
+      "darksBig": "Now the large dark masses, with colored darks (for example ultramarine blue and burnt umber) and little water.",
+      "darksSmall": "Add the smaller darks with a pointed brush: cast shadows, hollows, small accents.",
+      "refine": "Blend the transitions and define the edges with a damp brush and little water. Remove the masking fluid."
+    }
+  },
+  "fr": {
+    "pt": {
+      "background": "Fond",
+      "darksBig": "Grandes masses sombres",
+      "darksSmall": "Petites masses sombres",
+      "colors": "Couleurs",
+      "colorsBig": "Couleurs : grandes zones",
+      "colorsSmall": "Couleurs : petites zones",
+      "colorsFar": "Couleurs : zones lointaines",
+      "colorsNear": "Couleurs : zones proches",
+      "lights": "Clairs",
+      "lightsSmall": "Clairs : petites zones",
+      "refine": "Finition",
+      "whites": "Blancs et lumières maximales"
+    },
+    "pd": {
+      "background": "Posez tout le fond avec des couleurs simplifiées, à larges touches. Faites déborder un peu la couleur sous les sujets : quand vous les peindrez par-dessus, les bords resteront nets.",
+      "darksBig": "Repérez les grandes zones sombres qui tiennent la composition et posez-les avec des sombres colorés, par exemple bleu outremer et terre d'ombre, pas avec du noir. C'est la structure du tableau : vérifiez formes et proportions.",
+      "darksSmall": "Ajoutez les sombres plus petits : ombres portées, creux, plis, yeux. Toujours des sombres colorés, avec un pinceau plus petit.",
+      "colors": "Remplissez les demi-teintes avec la couleur locale de chaque zone, entre les sombres déjà posés. Comparez toujours chaque couleur avec ses voisines.",
+      "colorsBig": "Posez la couleur locale dans les plus grandes zones de demi-teinte, entre les sombres. Travaillez en aplats, sans fondre pour l'instant.",
+      "colorsSmall": "Complétez les demi-teintes dans les petites zones et les passages entre les formes, avec des pinceaux plus petits.",
+      "colorsFar": "Posez la couleur locale des demi-teintes en partant des zones les plus lointaines, avec des couleurs un peu plus froides et moins contrastées.",
+      "colorsNear": "Continuez avec la couleur locale des demi-teintes dans les zones proches et sur le sujet, avec des couleurs plus chaudes et plus saturées.",
+      "lights": "Posez les zones claires par-dessus les demi-teintes pour donner du volume aux formes. Les clairs vont toujours sur les sombres, jamais l'inverse.",
+      "lightsSmall": "Ajoutez les petits clairs : reflets, bords éclairés, petits plans dans la lumière.",
+      "refine": "Fondez les passages entre sombres, couleurs et clairs, précisez les bords et ajoutez les détails. Fondez là où la forme tourne, gardez net là où il y a du contraste.",
+      "whites": "En dernier, les points les plus lumineux : quelques touches franches de couleur claire et épaisse, presque pure. Ce sont elles qui font vivre le tableau."
+    },
+    "od": {
+      "background": "Posez tout le fond avec une peinture maigre diluée au solvant, à larges touches. Faites déborder un peu la couleur sous les sujets : les bords resteront nets.",
+      "whites": "En dernier, les points les plus lumineux : quelques touches franches de peinture claire et épaisse, avec un peu de médium à l'huile, en respectant le gras sur maigre."
+    },
+    "wt": {
+      "background": "Lavis du fond",
+      "wLight": "Glacis clairs",
+      "wColors": "Couleurs et demi-teintes",
+      "darksBig": "Sombres : grandes masses",
+      "darksSmall": "Sombres : petites masses",
+      "refine": "Finition"
+    },
+    "wd": {
+      "background": "Mouillez le papier et posez le fond par lavis larges et clairs, en débordant un peu sous les sujets. Laissez sécher complètement.",
+      "wLight": "Posez un premier glacis clair sur tous les sujets, en laissant le papier blanc dans les lumières. C'est la base des couleurs.",
+      "wColors": "Quand le papier est sec, posez la couleur locale des demi-teintes par glacis plus chargés.",
+      "darksBig": "Maintenant les grandes masses sombres, avec des sombres colorés (par exemple bleu outremer et terre d'ombre) et peu d'eau.",
+      "darksSmall": "Ajoutez les petits sombres avec un pinceau pointu : ombres portées, creux, petits accents.",
+      "refine": "Fondez les passages et précisez les bords avec un pinceau humide et peu d'eau. Retirez le drawing gum."
+    }
+  },
+  "es": {
+    "pt": {
+      "background": "Fondo",
+      "darksBig": "Masas oscuras grandes",
+      "darksSmall": "Masas oscuras pequeñas",
+      "colors": "Colores",
+      "colorsBig": "Colores: zonas grandes",
+      "colorsSmall": "Colores: zonas pequeñas",
+      "colorsFar": "Colores: zonas lejanas",
+      "colorsNear": "Colores: zonas cercanas",
+      "lights": "Claros",
+      "lightsSmall": "Claros: zonas pequeñas",
+      "refine": "Acabado",
+      "whites": "Blancos y luces máximas"
+    },
+    "pd": {
+      "background": "Extiende todo el fondo con colores simplificados y pinceladas amplias. Deja que el color invada un poco los sujetos: al pintarlos encima, los bordes quedarán limpios.",
+      "darksBig": "Localiza las grandes zonas oscuras que sostienen la composición y extiéndelas con oscuros coloreados, por ejemplo azul ultramar y sombra tostada, no con negro. Es la estructura del cuadro: comprueba formas y proporciones.",
+      "darksSmall": "Añade los oscuros más pequeños: sombras proyectadas, huecos, pliegues, ojos. Siempre oscuros coloreados, con un pincel más pequeño.",
+      "colors": "Rellena los medios tonos con el color local de cada zona, entre los oscuros ya aplicados. Compara siempre cada color con los vecinos.",
+      "colorsBig": "Extiende el color local en las zonas de medio tono más amplias, entre los oscuros. Trabaja por manchas, sin fundir todavía.",
+      "colorsSmall": "Completa los medios tonos en las zonas más pequeñas y en las transiciones entre formas, con pinceles más pequeños.",
+      "colorsFar": "Extiende el color local de los medios tonos empezando por las zonas más lejanas, con colores algo más fríos y menos contrastados.",
+      "colorsNear": "Continúa con el color local de los medios tonos en las zonas cercanas y en el sujeto, con colores más cálidos y saturados.",
+      "lights": "Extiende las zonas claras sobre los medios tonos para dar volumen a las formas. Los claros van siempre encima de los oscuros, nunca al revés.",
+      "lightsSmall": "Añade los claros más pequeños: reflejos, bordes iluminados, pequeños planos en la luz.",
+      "refine": "Funde las transiciones entre oscuros, colores y claros, define los bordes y añade los detalles. Funde donde la forma gira, deja nítido donde hay contraste.",
+      "whites": "Por último, los puntos más luminosos: unos pocos toques decididos de color claro y espeso, casi puro. Son los que dan vida al cuadro."
+    },
+    "od": {
+      "background": "Extiende todo el fondo con pintura magra diluida con disolvente y pinceladas amplias. Deja que el color invada un poco los sujetos: los bordes quedarán limpios.",
+      "whites": "Por último, los puntos más luminosos: unos pocos toques decididos de pintura clara y espesa, con un poco de médium al óleo, respetando graso sobre magro."
+    },
+    "wt": {
+      "background": "Aguada del fondo",
+      "wLight": "Veladuras claras",
+      "wColors": "Colores y medios tonos",
+      "darksBig": "Oscuros: masas grandes",
+      "darksSmall": "Oscuros: masas pequeñas",
+      "refine": "Acabado"
+    },
+    "wd": {
+      "background": "Moja el papel y extiende el fondo con aguadas amplias y claras, invadiendo un poco los sujetos. Deja secar por completo.",
+      "wLight": "Extiende una primera veladura clara sobre todos los sujetos, dejando el papel en blanco en las luces. Es la base de los colores.",
+      "wColors": "Cuando el papel esté seco, extiende el color local de los medios tonos con veladuras más cargadas.",
+      "darksBig": "Ahora las grandes masas oscuras, con oscuros coloreados (por ejemplo azul ultramar y sombra tostada) y poca agua.",
+      "darksSmall": "Añade los oscuros más pequeños con un pincel de punta: sombras proyectadas, huecos, pequeños acentos.",
+      "refine": "Funde las transiciones y define los bordes con un pincel húmedo y poca agua. Retira el líquido de enmascarar."
+    }
+  },
+  "de": {
+    "pt": {
+      "background": "Hintergrund",
+      "darksBig": "Große dunkle Massen",
+      "darksSmall": "Kleine dunkle Massen",
+      "colors": "Farben",
+      "colorsBig": "Farben: große Flächen",
+      "colorsSmall": "Farben: kleine Flächen",
+      "colorsFar": "Farben: entfernte Bereiche",
+      "colorsNear": "Farben: nahe Bereiche",
+      "lights": "Helle Töne",
+      "lightsSmall": "Helle Töne: kleine Flächen",
+      "refine": "Feinarbeit",
+      "whites": "Weiß und hellste Lichter"
+    },
+    "pd": {
+      "background": "Lege den ganzen Hintergrund mit vereinfachten Farben und breiten Strichen an. Lass die Farbe etwas unter die Motive laufen: Wenn du sie darübermalst, bleiben die Kanten sauber.",
+      "darksBig": "Finde die großen dunklen Flächen, die die Komposition tragen, und lege sie mit farbigen Dunkeltönen an, zum Beispiel Ultramarinblau und Umbra gebrannt, nicht mit Schwarz. Das ist das Gerüst des Bildes: Prüfe Formen und Proportionen.",
+      "darksSmall": "Füge die kleineren Dunkeltöne hinzu: Schlagschatten, Vertiefungen, Falten, Augen. Immer farbige Dunkeltöne, mit einem kleineren Pinsel.",
+      "colors": "Fülle die Mitteltöne mit der Lokalfarbe jeder Zone zwischen den bereits gesetzten Dunkeltönen. Vergleiche jede Farbe immer mit ihren Nachbarn.",
+      "colorsBig": "Trage die Lokalfarbe in den größten Mitteltonflächen zwischen den Dunkeltönen auf. Arbeite flächig, noch ohne zu verblenden.",
+      "colorsSmall": "Vervollständige die Mitteltöne in den kleineren Flächen und in den Übergängen zwischen den Formen, mit kleineren Pinseln.",
+      "colorsFar": "Trage die Lokalfarben der Mitteltöne zuerst in den entferntesten Bereichen auf, etwas kühler und kontrastärmer.",
+      "colorsNear": "Fahre mit den Lokalfarben der Mitteltöne in den nahen Bereichen und am Motiv fort, wärmer und gesättigter.",
+      "lights": "Setze die hellen Flächen über die Mitteltöne, um den Formen Volumen zu geben. Helles kommt immer über Dunkles, nie umgekehrt.",
+      "lightsSmall": "Füge die kleineren hellen Töne hinzu: Reflexe, beleuchtete Kanten, kleine Flächen im Licht.",
+      "refine": "Verbinde die Übergänge zwischen Dunkeltönen, Farben und hellen Tönen, präzisiere die Kanten und füge Details hinzu. Weich, wo sich die Form dreht, scharf, wo Kontrast ist.",
+      "whites": "Ganz zum Schluss die hellsten Punkte: wenige entschlossene Tupfer heller, pastoser, fast reiner Farbe. Sie bringen das Bild zum Leben."
+    },
+    "od": {
+      "background": "Lege den ganzen Hintergrund mit magerer, mit Lösungsmittel verdünnter Farbe und breiten Strichen an. Lass die Farbe etwas unter die Motive laufen: Die Kanten bleiben sauber.",
+      "whites": "Ganz zum Schluss die hellsten Punkte: wenige entschlossene Tupfer heller, pastoser Farbe mit etwas Ölmalmittel, nach der Regel „fett auf mager“."
+    },
+    "wt": {
+      "background": "Lavierung des Hintergrunds",
+      "wLight": "Helle Lasuren",
+      "wColors": "Farben und Mitteltöne",
+      "darksBig": "Dunkeltöne: große Massen",
+      "darksSmall": "Dunkeltöne: kleine Massen",
+      "refine": "Feinarbeit"
+    },
+    "wd": {
+      "background": "Befeuchte das Papier und lege den Hintergrund mit breiten, hellen Lavierungen an, die etwas unter die Motive laufen. Lass alles vollständig trocknen.",
+      "wLight": "Lege eine erste helle Lasur über alle Motive und lass das Papier in den Lichtern weiß. Das ist die Grundlage für die Farben.",
+      "wColors": "Wenn das Papier trocken ist, trage die Lokalfarben der Mitteltöne mit kräftigeren Lasuren auf.",
+      "darksBig": "Jetzt die großen dunklen Massen, mit farbigen Dunkeltönen (zum Beispiel Ultramarinblau und Umbra gebrannt) und wenig Wasser.",
+      "darksSmall": "Füge die kleineren Dunkeltöne mit einem spitzen Pinsel hinzu: Schlagschatten, Vertiefungen, kleine Akzente.",
+      "refine": "Verbinde die Übergänge und präzisiere die Kanten mit einem feuchten Pinsel und wenig Wasser. Entferne die Maskierflüssigkeit."
+    }
+  }
+};
+Object.keys(I18N_VALUES).forEach((l) => {
+  const src = I18N_VALUES[l], dst = I18N[l];
+  Object.assign(dst.phase.paint.title, src.pt);
+  Object.assign(dst.phase.paint.desc, src.pd);
+  Object.assign(dst.phase.oil.desc, src.od);
+  Object.assign(dst.phase.wat.title, src.wt);
+  Object.assign(dst.phase.wat.desc, src.wd);
+});
+
 if (typeof module !== 'undefined') module.exports = I18N;
