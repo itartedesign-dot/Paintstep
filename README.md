@@ -1,4 +1,55 @@
-# Paintstep
+<div align="center">
+
+# 🎨 Paintstep
+
+### Any painting, step by step — like a real painter.
+
+**[▶ Open the app — it's free](https://itartedesign-dot.github.io/Paintstep/)**
+
+<img src="demo.gif" alt="Paintstep turns a painting into step-by-step painting instructions" width="360">
+
+Free · Oil · Acrylic · Watercolor · 5 languages · No sign-up · Your image never leaves your device
+
+[English](#english) · [Italiano](#italiano)
+
+</div>
+
+---
+
+## English
+
+Upload any painting (oil, acrylic or watercolor) and **Paintstep** turns it into **6–20 steps** that follow the method taught in art academies:
+
+**drawing → toned ground → background → large darks → small darks → colors → lights → details → whites and highlights.**
+
+For every step you get:
+
+- 🖌️ **the colors to use**, and for each one the **mixing recipe** from primary colors (in parts), computed with a subtractive color-mixing model
+- ✍️ **suggested brushes** (drawn) and whether to work **wet or dry**
+- 🔍 **where to paint**, highlighted on the canvas
+- ✂️ **"Split artwork"**: zoom into quarters (and quarters of quarters), swipe between them, compare with the original
+- 🎬 **"Create my video"**: a ready-to-share vertical video of your painting coming to life (hook, "Start here" arrows, palette and color mixes, before/after). Add a photo of **your own finished painting** and it becomes the grand finale — "From the original to the result with Paintstep!" — with the link and a QR code. Perfect for Reels, TikTok and Shorts
+
+**How it knows what to paint first.** You tap the main subject (smart selection + brush/eraser to refine) and, optionally, the secondary objects. Paintstep then paints the background first — behind the subject with acrylic, under its edges with oil, around it with watercolor — then the subjects, from darks to lights. If you skip, two small AI models running in your browser (Depth Anything V2 for depth, SegFormer for sky/water/subjects) do it automatically.
+
+**Canvas size.** Enter your canvas size: if proportions differ, move and zoom the painting to fit.
+
+**Privacy.** Everything runs in your browser. The image is never uploaded; only the AI models are downloaded once (≈ 30 MB) and cached.
+
+> Paintstep gives automatically generated suggestions and can be wrong. Mixes depend on the brand and quality of your paints: use them as a starting point.
+
+### Run it yourself
+It's a static site: `index.html`, `style.css`, `app.js`, `i18n.js`. Host it on GitHub Pages (Settings → Pages → Deploy from branch `main`, folder `/root`) or open `index.html` locally (AI models only load from a web server).
+
+### Contributing
+Ideas, bug reports and translations are welcome — open an **Issue** or use the **Contact** form in the app. If you're a painter, tell us how you would change the step order: that's the most valuable feedback.
+
+### Support
+Paintstep is free and made with passion. If it helped you paint, you can [buy me a coffee ☕ on PayPal](https://www.paypal.com/donate/?business=buono.p%40alice.it&no_recurring=0&currency_code=EUR).
+
+---
+
+## Italiano
 
 Carica l'immagine di un dipinto (olio, acrilico o acquerello) e Paintstep lo scompone in **6–20 step** per ricrearlo, dal disegno preparatorio ai dettagli finali. Per ogni step mostra i colori da usare e, toccando un colore, la **miscela di colori primari** (in parti) per ottenere quella tinta.
 
@@ -43,3 +94,7 @@ Tutti i testi sono in `i18n.js`, una sezione per lingua: puoi correggerli o aggi
 Paintstep è solo un'app di suggerimenti generati automaticamente e può sbagliare.
 
 Le dosi sono indicative: i pigmenti reali cambiano da marca a marca e il modello di mescolanza è un'approssimazione. I colori molto scuri o molto saturi possono non essere raggiungibili con i soli primari: in quel caso la scheda lo segnala e conviene attivare la tavolozza estesa.
+
+---
+
+Made by **Rein** · [MIT License](LICENSE)

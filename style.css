@@ -453,3 +453,38 @@ main { max-width: 860px; margin: 0 auto; padding: 8px 20px calc(120px + env(safe
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- video ---------- */
+.chip-accent { border-color: var(--cad); color: var(--cad); font-weight: 600; }
+.chip-accent:hover { background: var(--cad); color: var(--bg); }
+.vid-sheet { padding-top: 56px; }
+.vid-work { min-height: 180px; display: grid; place-content: center; gap: 14px; text-align: center; }
+.vid-work .work-bar { width: min(320px, 70vw); margin: 0 auto; }
+#vidMsg { margin: 0; font-family: var(--serif); font-style: italic; color: var(--muted); }
+#vidPreview { display: block; width: 100%; max-height: 56vh; background: #000; border-radius: 6px; margin: 12px 0 4px; }
+.vid-sheet h3 { margin-top: 0; }
+.primary.ghostish { background: transparent; border: 1px solid var(--line); margin-top: 10px; }
+.primary.ghostish:hover { border-color: var(--text); background: transparent; }
+
+/* ---------- invito a creare e condividere il video ---------- */
+.share-card {
+  margin: 22px 0 0; padding: 20px; border-radius: 10px;
+  background: linear-gradient(135deg, rgba(245,197,66,.16), rgba(58,99,224,.18));
+  border: 1px solid rgba(245,197,66,.45);
+}
+.share-head { display: flex; gap: 14px; align-items: flex-start; }
+.share-icon { flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--cad); display: grid; place-items: center; }
+.share-icon svg { width: 24px; height: 24px; fill: none; stroke: var(--bg); stroke-width: 2; stroke-linejoin: round; }
+.share-card h3 { margin: 0 0 4px; font-family: var(--serif); font-weight: 500; font-size: 1.3rem; line-height: 1.2; }
+.share-card p { margin: 0; color: var(--muted); font-size: .9rem; }
+.share-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
+.result-btn {
+  display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+  padding: 10px 16px; border-radius: 999px; border: 1px dashed rgba(255,255,255,.5); font-size: .9rem; font-weight: 600;
+}
+.result-btn:hover { border-color: var(--cad); }
+#resultThumb { width: 34px; height: 34px; object-fit: cover; border-radius: 6px; }
+.share-go { width: auto; margin: 0 0 0 auto; padding: 12px 22px; background: var(--cad); color: var(--bg); }
+.share-go:hover:not(:disabled) { background: #ffd35f; }
+.share-actions .link { margin: 0; }
+@media (max-width: 520px) { .share-go { width: 100%; margin: 4px 0 0; } }

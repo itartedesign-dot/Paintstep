@@ -6,11 +6,23 @@
   <meta name="theme-color" content="#0E1A33">
   <title>Paintstep</title>
   <meta name="description" content="Paintstep: ricrea un dipinto passo dopo passo in acrilico, olio o acquerello, con miscele di colore e pennelli consigliati.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Paintstep">
+  <meta property="og:title" content="Paintstep – any painting, step by step">
+  <meta property="og:description" content="Upload a painting: Paintstep breaks it into 6–20 steps like a real painter, with color mixes and brushes for each step. Free · Oil · Acrylic · Watercolor.">
+  <meta property="og:url" content="https://itartedesign-dot.github.io/Paintstep/">
+  <meta property="og:image" content="https://itartedesign-dot.github.io/Paintstep/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Paintstep – any painting, step by step">
+  <meta name="twitter:description" content="Like a real painter: background, darks, colors, lights and whites – with color mixes and brushes. Free.">
+  <meta name="twitter:image" content="https://itartedesign-dot.github.io/Paintstep/og-image.jpg">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=13">
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
   <header class="top">
@@ -222,6 +234,25 @@
         <button class="chip" id="dlBtn" data-i18n="download"></button>
       </div>
 
+      <div class="share-card">
+        <div class="share-head">
+          <span class="share-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="13" height="14" rx="3"/><path d="M16 10l5-3v10l-5-3z"/></svg></span>
+          <div>
+            <h3 data-i18n="shareTitle"></h3>
+            <p data-i18n="shareSub"></p>
+          </div>
+        </div>
+        <div class="share-actions">
+          <label class="result-btn">
+            <input type="file" id="resultInput" accept="image/*" hidden>
+            <img id="resultThumb" alt="" hidden>
+            <span id="resultLbl" data-i18n="addResult"></span>
+          </label>
+          <button class="link" id="resultRemove" data-i18n="removeResult" hidden></button>
+          <button class="primary share-go" id="vidBtn" data-i18n="vidBtn"></button>
+        </div>
+      </div>
+
       <p class="depth-note" id="depthNote"></p>
 
       <div class="stroke">
@@ -292,6 +323,26 @@
     </div>
   </footer>
 
+  <!-- VIDEO -->
+  <div class="sheet-backdrop" id="vidBackdrop" hidden>
+    <div class="sheet vid-sheet" role="dialog" aria-modal="true">
+      <button class="sheet-close" id="vidClose" data-i18n-aria="close">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 3l14 14M17 3L3 17"/></svg>
+      </button>
+      <div id="vidWork" class="vid-work">
+        <div class="work-bar"><span id="vidFill"></span></div>
+        <p id="vidMsg"></p>
+      </div>
+      <div id="vidResult" hidden>
+        <h3 data-i18n="vidReady"></h3>
+        <video id="vidPreview" playsinline controls loop muted></video>
+        <button class="primary" id="vidShare" data-i18n="vidShare"></button>
+        <button class="primary ghostish" id="vidSave" data-i18n="vidSave"></button>
+      </div>
+      <p class="error" id="vidErr" hidden></p>
+    </div>
+  </div>
+
   <!-- CONTATTI -->
   <div class="sheet-backdrop" id="contactBackdrop" hidden>
     <div class="sheet contact" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
@@ -313,7 +364,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=13"></script>
-  <script src="app.js?v=13"></script>
+  <script src="i18n.js?v=17"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>
